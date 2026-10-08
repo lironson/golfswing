@@ -180,6 +180,18 @@ select:focus { outline: none; border-bottom-color: var(--accent); }
 .view-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; border-left: 2px solid var(--accent); padding: 4px 0 4px 12px; }
 
 .summary .label { margin-bottom: 8px; }
+
+/* Guide-line legend: each swatch is drawn on a black chip, as the lines appear on photos */
+.legend summary { cursor: pointer; width: max-content; }
+.legend summary:hover { color: var(--accent); }
+.legend ul { margin-top: 10px; border-top: 1px solid var(--faint); max-width: 720px; }
+.legend li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--faint); font-size: 14px; }
+.swatch { position: relative; width: 30px; height: 16px; background: #000; }
+.swatch::before {
+  content: ""; position: absolute; left: 5px; right: 5px; top: 50%; height: 3px; margin-top: -1.5px;
+  background: var(--swatch);
+}
+.swatch.dashed::before { background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 7px); }
 .todo { border-top: 1px solid var(--faint); }
 .todo li {
   display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 4px 14px; align-items: baseline;
@@ -276,10 +288,6 @@ fieldset legend { margin-bottom: 8px; padding: 0; }
 .error { margin: 16px 0; padding: 4px 0 4px 12px; border-left: 2px solid var(--accent); }
 .summary h2 { font: 700 26px var(--f-display); text-transform: uppercase; letter-spacing: 0.04em; }
 .summary .actions, .summary #summary-body { margin-top: 16px; }
-.legend { margin-top: 16px; }
-.legend ul { margin-top: 8px; display: grid; gap: 4px; font-size: 14px; }
-.swatch { display: inline-block; width: 22px; height: 3px; vertical-align: middle; margin-right: 10px; }
-.swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 9px) !important; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 40px; padding: 28px 0; }
 .card { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 16px; }
 .card.flash .card-title { color: var(--accent); }

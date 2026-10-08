@@ -4,11 +4,11 @@ import { POSITIONS } from './positions.js';
 import { getLandmarker, processVideo, grabFrame } from './pose.js';
 import { prepareFrames, detectPositions, guessView, orientation } from './detect.js';
 import { analyzePosition, cardStatus, summarize } from './analyze.js';
-import { drawFrame, COLORS } from './overlay.js';
+import { drawFrame } from './overlay.js';
 import { clamp } from './geometry.js';
 import { cardCanvas, contactSheet, saveCanvas } from './export.js';
 import { initPhotos } from './photos.js';
-import { renderChecks, renderReadouts } from './ui.js';
+import { renderChecks, renderReadouts, renderLegend as renderSharedLegend } from './ui.js';
 
 const $ = (sel) => document.querySelector(sel);
 const video = $('#video');
@@ -355,36 +355,7 @@ function renderSummary() {
 }
 
 function renderLegend() {
-  const items = state.view === 'dtl'
-    ? [
-        [COLORS.spine, false, 'Spine angle now'],
-        [COLORS.reference, true, 'Spine angle at address (P1). Compare to spot standing up / early extension'],
-        [COLORS.butt, true, 'Butt line. Hips should stay on it through impact'],
-        [COLORS.plane, true, 'Shoulder plane (address hands → trail shoulder). Hands should come down under it'],
-        [COLORS.head, true, 'Head box from address'],
-        [COLORS.hands, false, 'Hand path from address'],
-        [COLORS.lead, false, 'Lead arm'],
-      ]
-    : [
-        [COLORS.spine, false, 'Shoulder line and spine'],
-        [COLORS.hips, false, 'Hip line'],
-        [COLORS.head, true, 'Head position at address. Watch for sway or lift'],
-        [COLORS.butt, true, 'Hip positions at address (sway lines)'],
-        [COLORS.hands, false, 'Hand path from address'],
-        [COLORS.lead, false, 'Lead arm (number = elbow angle)'],
-      ];
-  const ul = $('#legend-list');
-  ul.innerHTML = '';
-  for (const [color, dashed, text] of items) {
-    const li = document.createElement('li');
-    const sw = document.createElement('span');
-    sw.className = `swatch${dashed ? ' dashed' : ''}`;
-    // White overlay lines would vanish on the page background, so show them in ink.
-    const c = color.startsWith('rgba(255,255,255') ? 'var(--ink)' : color;
-    sw.style.background = c; sw.style.color = c;
-    li.append(sw, text);
-    ul.appendChild(li);
-  }
+  renderSharedLegend($('#legend-list'), state.view);
 }
 
 // ---------- Downloads ----------

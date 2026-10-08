@@ -9,7 +9,7 @@ import { analyzePosition, cardStatus, summarize } from './analyze.js';
 import { drawFrame } from './overlay.js';
 import { referenceElement } from './reference.js';
 import { cardCanvas, contactSheet, saveCanvas } from './export.js';
-import { renderChecks, renderReadouts } from './ui.js';
+import { renderChecks, renderReadouts, renderLegend } from './ui.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const MAX_SIDE = 1600;
@@ -36,7 +36,7 @@ export function initPhotos() {
     state.handedness = r.value; refreshReferences(); analyzeAll();
   }));
   document.querySelectorAll('input[name="photo-view"]').forEach((r) => r.addEventListener('change', () => {
-    state.view = r.value; suggestView(); analyzeAll();
+    state.view = r.value; suggestView(); updateLegend(); analyzeAll();
   }));
   $('#photo-overlay').addEventListener('change', (e) => { state.showOverlay = e.target.checked; state.slots.forEach((_, p) => renderRow(p)); });
   $('#photo-clear').addEventListener('click', () => {
@@ -48,7 +48,12 @@ export function initPhotos() {
     const filled = state.rows.filter((_, p) => state.slots[p] && state.slots[p].result).map((row) => $('canvas', row));
     if (filled.length) saveCanvas(contactSheet(filled), 'swing-photos.png');
   });
+  updateLegend();
   renderSummary();
+}
+
+function updateLegend() {
+  renderLegend($('#photo-legend-list'), state.view, { photos: true });
 }
 
 function buildRows() {
@@ -220,6 +225,7 @@ function suggestView() {
     state.view = view;
     $(`input[name="photo-view"][value="${view}"]`).checked = true;
     note.hidden = true;
+    updateLegend();
     analyzeAll();
   });
   note.appendChild(btn);
