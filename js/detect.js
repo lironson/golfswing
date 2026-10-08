@@ -205,3 +205,37 @@ export function orientation(pts, p1, handedness) {
     facingDir: facing >= 0 ? 1 : -1,
   };
 }
+
+// ---------- Single-photo helpers (photo mode) ----------
+
+/** Normalised landmarks of one image -> pixel-space points. */
+export function toPixels(lm, width, height) {
+  return lm.map((p) => ({ x: p.x * width, y: p.y * height, v: p.visibility ?? 1 }));
+}
+
+/**
+ * Directions from the feet, which barely move during a swing, so this works on any
+ * single P-position photo (the body itself may be turned or mid-motion).
+ */
+export function feetOrientation(frame, handedness) {
+  const S = sides(handedness);
+  const lead = frame[S.ankle[0]], trail = frame[S.ankle[1]];
+  const toes = (frame[LM.lFoot].x - frame[LM.lHeel].x) + (frame[LM.rFoot].x - frame[LM.rHeel].x);
+  return {
+    torso: torsoLength(frame) || 1,
+    targetDir: lead.x - trail.x >= 0 ? 1 : -1,
+    facingDir: toes >= 0 ? 1 : -1,
+  };
+}
+
+/**
+ * Map a reference pose (e.g. the P1 photo) into another photo's pixel space so the two
+ * can be compared even if the framing or zoom differs. Anchored on the lead ankle and
+ * scaled by torso length.
+ */
+export function alignTo(ref, frame, handedness) {
+  const k = sides(handedness).ankle[0];
+  const s = (torsoLength(frame) || 1) / (torsoLength(ref) || 1);
+  const ax = ref[k].x, ay = ref[k].y, bx = frame[k].x, by = frame[k].y;
+  return ref.map((p) => ({ x: bx + (p.x - ax) * s, y: by + (p.y - ay) * s, v: p.v }));
+}

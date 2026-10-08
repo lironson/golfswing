@@ -1,0 +1,274 @@
+// Photo mode: a P1–P10 page the golfer fills in with whatever stills they have.
+// Each photo is analysed on its own; when P1 is present, the others are also
+// compared against it (aligned by the lead foot and body size).
+
+import { POSITIONS } from './positions.js';
+import { detectImage } from './pose.js';
+import { toPixels, feetOrientation, alignTo, guessView } from './detect.js';
+import { analyzePosition, cardStatus, summarize } from './analyze.js';
+import { drawFrame } from './overlay.js';
+import { referenceElement } from './reference.js';
+import { cardCanvas, contactSheet, saveCanvas } from './export.js';
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const MAX_SIDE = 1600;
+const viewName = (v) => (v === 'dtl' ? 'down-the-line' : 'face-on');
+
+const state = {
+  handedness: 'right',
+  view: 'face',
+  showOverlay: true,
+  // Per position: null (empty) or { img, pts, error, busy, result, ctx }
+  slots: Array(10).fill(null),
+  rows: [],
+};
+
+let initialised = false;
+
+export function initPhotos() {
+  if (initialised) return;
+  initialised = true;
+  buildRows();
+  $('#photo-hand').addEventListener('change', (e) => { state.handedness = e.target.value; refreshReferences(); analyzeAll(); });
+  $('#photo-view').addEventListener('change', (e) => { state.view = e.target.value; analyzeAll(); });
+  $('#photo-overlay').addEventListener('change', (e) => { state.showOverlay = e.target.checked; state.slots.forEach((_, p) => renderRow(p)); });
+  $('#photo-clear').addEventListener('click', () => {
+    if (!state.slots.some(Boolean) || !confirm('Remove all photos?')) return;
+    state.slots = Array(10).fill(null);
+    analyzeAll();
+  });
+  $('#photo-download-all').addEventListener('click', () => {
+    const filled = state.rows.filter((_, p) => state.slots[p] && state.slots[p].result).map((row) => $('canvas', row));
+    if (filled.length) saveCanvas(contactSheet(filled), 'swing-photos.png');
+  });
+  renderSummary();
+}
+
+function buildRows() {
+  const list = $('#photo-rows');
+  const tpl = $('#photo-row-template');
+  state.rows = POSITIONS.map((pos, p) => {
+    const row = tpl.content.firstElementChild.cloneNode(true);
+    row.id = `photo-${pos.id}`;
+    $('.row-title', row).textContent = `${pos.id} · ${pos.name}`;
+    $('.row-summary', row).textContent = pos.summary;
+    const cp = $('.checkpoints ul', row);
+    pos.checkpoints.forEach((t) => { const li = document.createElement('li'); li.textContent = t; cp.appendChild(li); });
+    $('.ref-media', row).appendChild(referenceElement(p, state.handedness));
+    $('.dz-title', row).textContent = `Add your ${pos.id} photo`;
+
+    const input = $('input[type=file]', row);
+    input.addEventListener('change', () => { if (input.files[0]) loadPhoto(p, input.files[0]); input.value = ''; });
+    $('.replace', row).addEventListener('click', () => input.click());
+    $('.remove', row).addEventListener('click', () => removePhoto(p));
+    $('.download', row).addEventListener('click', () => {
+      const s = state.slots[p];
+      if (s && s.result) saveCanvas(cardCanvas($('canvas', row), s.result.checks), `swing-${pos.id}.png`);
+    });
+    const slot = $('.slot', row);
+    ['dragenter', 'dragover'].forEach((ev) => slot.addEventListener(ev, (e) => { e.preventDefault(); slot.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach((ev) => slot.addEventListener(ev, (e) => { e.preventDefault(); slot.classList.remove('drag'); }));
+    slot.addEventListener('drop', (e) => {
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) loadPhoto(p, file);
+    });
+    list.appendChild(row);
+    return row;
+  });
+}
+
+function refreshReferences() {
+  state.rows.forEach((row, p) => {
+    const media = $('.ref-media', row);
+    media.innerHTML = '';
+    media.appendChild(referenceElement(p, state.handedness));
+  });
+}
+
+async function decodeImage(file) {
+  if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(file.name)) {
+    throw new Error('That file does not look like an image.');
+  }
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    throw new Error('This browser cannot open that image format. Try a JPEG or PNG (iPhone: Settings → Camera → Formats → Most Compatible).');
+  }
+  const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * scale);
+  c.height = Math.round(bmp.height * scale);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close && bmp.close();
+  return c;
+}
+
+async function loadPhoto(p, file) {
+  state.slots[p] = { busy: true };
+  renderRow(p);
+  try {
+    const img = await decodeImage(file);
+    state.slots[p] = { img, busy: true };
+    renderRow(p);
+    const lm = await detectImage(img);
+    if (state.slots[p] && state.slots[p].img !== img) return; // replaced while detecting
+    state.slots[p] = lm
+      ? { img, pts: toPixels(lm, img.width, img.height) }
+      : { img, error: 'No golfer was found in this photo. Use a photo with your whole body in view and good light.' };
+  } catch (err) {
+    console.error(err);
+    state.slots[p] = { error: err.message || String(err) };
+  }
+  if (p === 0) {
+    suggestView();
+    analyzeAll();
+  } else {
+    analyzeSlot(p);
+    renderRow(p);
+    renderSummary();
+  }
+}
+
+function removePhoto(p) {
+  state.slots[p] = null;
+  if (p === 0) analyzeAll();
+  else { renderRow(p); renderSummary(); }
+}
+
+function analyzeSlot(p) {
+  const s = state.slots[p];
+  if (!s || !s.pts) return;
+  const ref = state.slots[0] && state.slots[0].pts;
+  const addr = p === 0 ? s.pts : ref ? alignTo(ref, s.pts, state.handedness) : s.pts;
+  s.ctx = {
+    pts: [addr, s.pts],
+    idx: [0],
+    handedness: state.handedness,
+    view: state.view,
+    orient: feetOrientation(s.pts, state.handedness),
+    hasReference: p === 0 || !!ref,
+  };
+  s.result = analyzePosition(p, 1, s.ctx);
+}
+
+function analyzeAll() {
+  state.slots.forEach((_, p) => { analyzeSlot(p); renderRow(p); });
+  renderSummary();
+}
+
+function suggestView() {
+  const s = state.slots[0];
+  const note = $('#photo-view-hint');
+  if (!s || !s.pts) { note.hidden = true; return; }
+  const { view } = guessView([s.pts], 0);
+  if (view === state.view) { note.hidden = true; return; }
+  note.hidden = false;
+  note.textContent = '';
+  note.append(`Your P1 photo looks like a ${viewName(view)} shot. `);
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'btn small';
+  btn.textContent = `Switch to ${viewName(view)}`;
+  btn.addEventListener('click', () => {
+    state.view = view;
+    $('#photo-view').value = view;
+    note.hidden = true;
+    analyzeAll();
+  });
+  note.appendChild(btn);
+}
+
+function renderRow(p) {
+  const row = state.rows[p];
+  if (!row) return;
+  const s = state.slots[p];
+  const drop = $('.slot-drop', row), filled = $('.slot-filled', row);
+  row.classList.toggle('is-empty', !s);
+  drop.hidden = !!s;
+  filled.hidden = !s;
+  if (!s) return;
+
+  const canvas = $('canvas', row);
+  const status = $('.slot-status', row);
+  const list = $('.checks', row);
+  const metrics = $('.metrics', row);
+  list.innerHTML = '';
+  metrics.innerHTML = '';
+  $('.download', row).hidden = !s.result;
+
+  if (s.img) {
+    drawFrame(canvas, s.img, {
+      srcW: s.img.width, srcH: s.img.height, ctx: s.ctx, p, frameIndex: 1, handPath: false,
+      showOverlay: state.showOverlay && !!s.result,
+      title: `${POSITIONS[p].id} · ${POSITIONS[p].name}`,
+      status: s.result && s.result.checks.length ? cardStatus(s.result.checks) : null,
+    });
+    canvas.hidden = false;
+  } else {
+    canvas.hidden = true;
+  }
+
+  if (s.busy) { status.textContent = 'Finding your body position… (the first photo also loads the pose model)'; return; }
+  if (s.error) { status.textContent = `⚠ ${s.error}`; return; }
+
+  status.textContent = p > 0 && !(state.slots[0] && state.slots[0].pts)
+    ? 'Add a P1 (address) photo to also check head, hip and spine movement against your setup.'
+    : '';
+  const checks = s.result.checks.length ? s.result.checks : [{ status: 'info', title: 'Reference position', detail: 'Compare your photo with the ideal checkpoints.' }];
+  for (const c of checks) {
+    const li = document.createElement('li');
+    li.className = c.status;
+    const strong = document.createElement('strong'); strong.textContent = c.title; li.appendChild(strong);
+    if (c.detail) li.appendChild(document.createTextNode(c.detail));
+    list.appendChild(li);
+  }
+  for (const [k, v] of s.result.metrics) {
+    const chip = document.createElement('span');
+    chip.append(`${k} `);
+    const b = document.createElement('b'); b.textContent = v; chip.appendChild(b);
+    metrics.appendChild(chip);
+  }
+}
+
+function renderSummary() {
+  const results = state.slots.map((s) => (s && s.result) || null);
+  const count = results.filter(Boolean).length;
+  const body = $('#photo-summary');
+  body.innerHTML = '';
+  const head = document.createElement('p');
+  head.innerHTML = `<strong>${count} of 10</strong> positions added.`;
+  body.appendChild(head);
+  if (!count) {
+    head.append(' Add photos of any positions you have below. The rest can stay blank.');
+    return;
+  }
+  const { top, warnCount, goodCount } = summarize(results, 3);
+  if (!top.length) head.append(' No major issues flagged so far. Compare each photo with its ideal checkpoints.');
+  if (top.length) {
+    const ol = document.createElement('ol');
+    ol.className = 'priorities';
+    for (const c of top) {
+      const li = document.createElement('li');
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = POSITIONS[c.p].id;
+      const t = document.createElement('strong'); t.textContent = c.title;
+      li.append(tag, t, document.createElement('br'), c.detail);
+      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Show';
+      btn.addEventListener('click', () => {
+        const row = state.rows[c.p];
+        row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        row.classList.add('flash');
+        setTimeout(() => row.classList.remove('flash'), 1500);
+      });
+      li.appendChild(btn);
+      ol.appendChild(li);
+    }
+    body.appendChild(ol);
+  }
+  const score = document.createElement('div');
+  score.className = 'score';
+  score.innerHTML = `<span>✓ ${goodCount} checks look good</span><span>⚠ ${warnCount} things to work on</span>`;
+  body.appendChild(score);
+}
+
+// Expose state for debugging in the console.
+window.__photos = state;

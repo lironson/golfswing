@@ -6,25 +6,26 @@ const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSI
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 
-let landmarkerPromise = null;
+const landmarkers = {};
 let lastTimestamp = 0;
 
-export function getLandmarker() {
-  if (!landmarkerPromise) {
-    landmarkerPromise = createLandmarker().catch((err) => {
-      landmarkerPromise = null;
+/** Pose landmarker for 'VIDEO' (frame sequences) or 'IMAGE' (single photos), created once per mode. */
+export function getLandmarker(mode = 'VIDEO') {
+  if (!landmarkers[mode]) {
+    landmarkers[mode] = createLandmarker(mode).catch((err) => {
+      delete landmarkers[mode];
       throw err;
     });
   }
-  return landmarkerPromise;
+  return landmarkers[mode];
 }
 
-async function createLandmarker() {
+async function createLandmarker(runningMode) {
   const { FilesetResolver, PoseLandmarker } = await import(`${MP_BASE}/vision_bundle.mjs`);
   const fileset = await FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
   const options = (delegate) => ({
     baseOptions: { modelAssetPath: MODEL_URL, delegate },
-    runningMode: 'VIDEO',
+    runningMode,
     numPoses: 1,
     minPoseDetectionConfidence: 0.5,
     minPosePresenceConfidence: 0.5,
@@ -36,6 +37,15 @@ async function createLandmarker() {
     console.warn('GPU delegate unavailable, falling back to CPU.', err);
     return PoseLandmarker.createFromOptions(fileset, options('CPU'));
   }
+}
+
+/** Detect the golfer in a single image. Returns normalised landmarks or null. */
+export async function detectImage(source) {
+  const landmarker = await getLandmarker('IMAGE');
+  const res = landmarker.detect(source);
+  return res.landmarks && res.landmarks[0]
+    ? res.landmarks[0].map((p) => ({ x: p.x, y: p.y, visibility: p.visibility ?? 1 }))
+    : null;
 }
 
 // All seeks go through one queue so concurrent requests never fight over currentTime.
@@ -88,7 +98,7 @@ export async function grabFrame(video, t, maxSide = 1280) {
  * @returns {Promise<Array<{t:number, lm:Array|null}>>}
  */
 export async function processVideo(video, { start = 0, end = video.duration, fps = 60, onProgress, isCancelled } = {}) {
-  const landmarker = await getLandmarker();
+  const landmarker = await getLandmarker('VIDEO');
   const step = 1 / fps;
   const times = [];
   for (let t = start; t <= end + 1e-6; t += step) times.push(+t.toFixed(4));

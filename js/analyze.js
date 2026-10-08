@@ -15,7 +15,9 @@ const fmt = (v, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : '–');
 
 /**
  * Body measurements for one frame, expressed relative to the address frame (P1).
- * ctx: { pts, idx, handedness, view, orient: { torso, targetDir, facingDir } }
+ * ctx: { pts, idx, handedness, view, orient: { torso, targetDir, facingDir }, hasReference? }
+ * When ctx.hasReference === false (a photo with no P1 to compare against), the
+ * address-relative values are NaN and the rules that need them are skipped.
  */
 export function measure(frameIndex, ctx) {
   const S = sides(ctx.handedness);
@@ -35,7 +37,7 @@ export function measure(frameIndex, ctx) {
   // Face-on spine tilt: positive = upper body tilted away from the target.
   const spineAway = deg(Math.atan2(-(shMid.x - hipMid.x) * targetDir, hipMid.y - shMid.y));
 
-  return {
+  const m = {
     spine: angleFromVertical(hipMid, shMid),
     spineA: angleFromVertical(hipMidA, shMidA),
     spineAway,
@@ -69,17 +71,26 @@ export function measure(frameIndex, ctx) {
       return (yLine - hands.y) / torso;
     })(),
   };
+  if (ctx.hasReference === false) {
+    for (const k of RELATIVE) m[k] = NaN;
+    m.trailHeelUp = null;
+  }
+  return m;
 }
+
+const RELATIVE = ['spineA', 'trailKneeA', 'shoulderTurnRatio', 'headTarget', 'headBall', 'headDown', 'hipTarget',
+  'hipBall', 'handsTarget', 'handsBall', 'aboveShoulderPlane'];
 
 /** Checks for P-position `p` (0-based) evaluated at `frameIndex`. */
 export function analyzePosition(p, frameIndex, ctx) {
   const m = measure(frameIndex, ctx);
-  const checks = ctx.view === 'dtl' ? dtlChecks(p, m) : faceOnChecks(p, m);
+  const rel = ctx.hasReference !== false;
+  const checks = ctx.view === 'dtl' ? dtlChecks(p, m, rel) : faceOnChecks(p, m, rel);
   checks.push(...commonChecks(p, m));
-  return { checks, metrics: readouts(p, m, ctx.view) };
+  return { checks, metrics: readouts(p, m, ctx.view, rel) };
 }
 
-function dtlChecks(p, m) {
+function dtlChecks(p, m, rel) {
   const c = CONFIG.dtl;
   const out = [];
   const spineLoss = m.spineA - m.spine;
@@ -98,13 +109,13 @@ function dtlChecks(p, m) {
     else out.push(good('Arms hang naturally', 'Hands sit roughly under the shoulders.'));
   }
 
-  if (p === 1) {
+  if (p === 1 && rel) {
     if (m.handsBall < -c.takeawayInsideWarn) out.push(warn('Takeaway too far inside', 'Hands have moved sharply behind you toward your body. Keep the hands in front of the chest and let the club work back on a straighter line to P2.', 2));
     else if (m.handsBall > 0.12) out.push(warn('Takeaway pushed outside', 'Hands are moving out toward the ball. Rotate the chest to move the club back rather than pushing the arms away.', 3));
     else out.push(good('Takeaway on line', 'Hands stay in front of the body as the club moves back.'));
   }
 
-  if (p >= 1 && p <= 6) {
+  if (p >= 1 && p <= 6 && rel) {
     if (spineLoss > c.spineLossWarn) {
       const where = p >= 5 ? 'Early extension: you are standing up into the ball.' : 'You are standing up during the backswing.';
       out.push(warn('Losing spine angle', `${where} Spine tilt ${fmt(m.spine)}° vs ${fmt(m.spineA)}° at address. Feel your chest stay over the ball and your hips stay back.`, p >= 5 ? 1 : 2));
@@ -115,29 +126,33 @@ function dtlChecks(p, m) {
     }
   }
 
-  if ((p === 5 || p === 6) && m.hipBall > c.hipTowardBallWarn) {
+  if (!rel) {
+    // Hip depth needs the address photo.
+  } else if ((p === 5 || p === 6) && m.hipBall > c.hipTowardBallWarn) {
     out.push(warn('Hips moving toward the ball', 'Your hips have moved off the "butt line" toward the ball (early extension). This crowds the arms and leads to blocks and flips. Keep your backside on the line as you rotate through.', 1));
   } else if (p === 6) {
     out.push(good('Hip depth kept', 'Hips stayed back on the butt line through impact.'));
   }
 
-  if (p === 3 && m.trailKneeA - m.trailKnee < -c.trailKneeStraightenWarn) {
+  if (p === 3 && rel && m.trailKneeA - m.trailKnee < -c.trailKneeStraightenWarn) {
     out.push(warn('Trail leg straightening', `Trail knee went from ${fmt(m.trailKneeA)}° to ${fmt(m.trailKnee)}°. Some straightening is fine, but keep a little flex to stay in posture.`, 3));
   }
 
-  if (p === 5 && m.aboveShoulderPlane > c.overTopWarn) {
+  if (!rel) {
+    // The shoulder plane is drawn from the address photo.
+  } else if (p === 5 && m.aboveShoulderPlane > c.overTopWarn) {
     out.push(warn('Possible over-the-top move', 'Hands are above the shoulder-plane line coming down. Let the trail elbow drop toward your hip so the club shallows and approaches from the inside.', 1));
   } else if (p === 5) {
     out.push(good('Hands under the shoulder plane', 'The downswing is approaching from below the shoulder plane.'));
   }
 
-  if (p >= 1 && p <= 7) {
+  if (p >= 1 && p <= 7 && rel) {
     if (m.headDown > c.headMoveWarn) out.push(warn('Head dipping', 'Your head has dropped from its address height. Keep your chest up and your eyes level.', 2));
     else if (m.headDown < -c.headMoveWarn) out.push(warn('Head lifting', 'Your head has risen from its address height, usually a sign of standing up. Stay down through the shot.', 2));
     if (m.headBall > c.headMoveWarn) out.push(warn('Head moving toward the ball', 'Your upper body is drifting toward the ball, which often comes with early extension.', 2));
   }
 
-  if (p === 7) {
+  if (p === 7 && rel) {
     if (Math.abs(spineLoss) <= 10) out.push(good('Posture held through the ball', 'Spine angle stays close to address after impact.'));
     else out.push(warn('Posture lost after impact', `Spine tilt ${fmt(m.spine)}° vs ${fmt(m.spineA)}° at address. Keep rotating with the chest over the ball until the arms are past parallel.`, 3));
   }
@@ -149,7 +164,7 @@ function dtlChecks(p, m) {
   return out;
 }
 
-function faceOnChecks(p, m) {
+function faceOnChecks(p, m, rel) {
   const c = CONFIG.faceOn;
   const out = [];
 
@@ -166,28 +181,28 @@ function faceOnChecks(p, m) {
   }
 
   if (p >= 1 && p <= 3) {
-    if (m.headTarget < -c.headSwayWarn) out.push(warn('Head swaying away from the target', `Head has moved ${fmt(-m.headTarget * 100)}% of a torso length off the ball. Turn around your spine rather than sliding.`, 2));
-    if (m.trailHipOutside > 0 || m.hipTarget < -0.2) out.push(warn('Hip sway', 'Your trail hip is drifting outside your trail foot. Feel the trail hip turn behind you instead of sliding sideways.', 2));
+    if (rel && m.headTarget < -c.headSwayWarn) out.push(warn('Head swaying away from the target', `Head has moved ${fmt(-m.headTarget * 100)}% of a torso length off the ball. Turn around your spine rather than sliding.`, 2));
+    if (m.trailHipOutside > 0 || (rel && m.hipTarget < -0.2)) out.push(warn('Hip sway', 'Your trail hip is drifting outside your trail foot. Feel the trail hip turn behind you instead of sliding sideways.', 2));
     else if (p === 3) out.push(good('Centred pivot', 'Trail hip stays inside the trail foot.'));
   }
 
-  if (p === 3) {
+  if (p === 3 && rel) {
     if (m.shoulderTurnRatio > c.shoulderTurnRatioWarn) out.push(warn('Restricted shoulder turn', 'Your shoulders do not appear to turn much. Let the lead shoulder turn under the chin (aim for ~90°) — allow the hips to turn too.', 2));
     else out.push(good('Full shoulder turn', 'Shoulders have rotated well away from the target.'));
   }
 
-  if (p === 4 || p === 5) {
+  if ((p === 4 || p === 5) && rel) {
     if (m.hipTarget >= 0.03) out.push(good('Lower body leading', 'Hips have shifted toward the target to start the downswing.'));
     else out.push(warn('Shift toward the target', 'Your hips have not moved toward the target yet. Start the downswing by shifting pressure into the lead foot before turning.', 1));
   }
 
   if (p === 6) {
-    if (m.handsTarget < -c.handsBehindWarn) out.push(warn('Hands behind at impact (flip)', 'Hands are behind their address position. Lead with the hands — forward shaft lean compresses the ball.', 1));
+    if (!rel) { /* hands vs address needs P1 */ } else if (m.handsTarget < -c.handsBehindWarn) out.push(warn('Hands behind at impact (flip)', 'Hands are behind their address position. Lead with the hands — forward shaft lean compresses the ball.', 1));
     else out.push(good('Hands ahead at impact', 'Hands are level with or ahead of their address position (forward shaft lean).'));
     if (m.spineAway < 0) out.push(warn('Upper body ahead of the ball', 'Spine is tilted toward the target at impact. Keep your head behind the ball with a slight tilt away from the target.', 1));
     else if (m.spineAway > 30) out.push(warn('Hanging back', `Spine tilted ${fmt(m.spineAway)}° away from the target. Get more weight to the lead side through impact.`, 2));
     else out.push(good('Good spine tilt at impact', `Tilted ${fmt(m.spineAway)}° away from the target.`));
-    if (m.headTarget > c.headAheadWarn) out.push(warn('Head sliding toward the target', 'Your head has moved ahead of where it started. Keep it behind the ball through impact.', 2));
+    if (rel && m.headTarget > c.headAheadWarn) out.push(warn('Head sliding toward the target', 'Your head has moved ahead of where it started. Keep it behind the ball through impact.', 2));
     if (m.leadHipPastAnkle > c.hipSlideMax) out.push(warn('Hips sliding too far', 'Your lead hip has slid past the lead foot. Rotate the hips open rather than sliding them.', 2));
   }
 
@@ -215,25 +230,23 @@ function commonChecks(p, m) {
   return out;
 }
 
-function readouts(p, m, view) {
+function readouts(p, m, view, rel) {
   if (view === 'dtl') {
-    const r = [
-      ['Spine tilt', `${fmt(m.spine)}°`],
-      ['Address', `${fmt(m.spineA)}°`],
-    ];
+    const r = [['Spine tilt', `${fmt(m.spine)}°`]];
+    if (rel && p > 0) r.push(['Address', `${fmt(m.spineA)}°`]);
     if (p === 0 || p === 3) r.push(['Trail knee', `${fmt(m.trailKnee)}°`]);
-    if (p > 0) r.push(['Hips → ball', `${fmt(m.hipBall * 100)}%`]);
+    if (rel && p > 0) r.push(['Hips → ball', `${fmt(m.hipBall * 100)}%`]);
     return r;
   }
   const r = [
     ['Shoulder tilt', `${fmt(m.shoulderTilt)}°`],
     ['Lead elbow', `${fmt(m.leadElbow)}°`],
   ];
-  if (p > 0) {
+  if (rel && p > 0) {
     r.push(['Head shift', `${fmt(m.headTarget * 100)}%`]);
     r.push(['Hip shift', `${fmt(m.hipTarget * 100)}%`]);
   }
-  if (p === 3) r.push(['Turn (width)', `${fmt(m.shoulderTurnRatio * 100)}%`]);
+  if (rel && p === 3) r.push(['Turn (width)', `${fmt(m.shoulderTurnRatio * 100)}%`]);
   return r;
 }
 
@@ -246,11 +259,11 @@ export function cardStatus(checks) {
 export function summarize(results, n = 3) {
   const seen = new Set();
   const warns = [];
-  results.forEach((r, p) => r.checks.forEach((c) => {
+  results.forEach((r, p) => r && r.checks.forEach((c) => {
     if (c.status === 'warn' && !seen.has(c.title)) { seen.add(c.title); warns.push({ ...c, p }); }
   }));
   warns.sort((a, b) => a.priority - b.priority || a.p - b.p);
-  const goodCount = results.reduce((s, r) => s + r.checks.filter((c) => c.status === 'good').length, 0);
+  const goodCount = results.reduce((s, r) => s + (r ? r.checks.filter((c) => c.status === 'good').length : 0), 0);
   return { top: warns.slice(0, n), warnCount: warns.length, goodCount };
 }
 

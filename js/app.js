@@ -6,6 +6,8 @@ import { prepareFrames, detectPositions, guessView, orientation } from './detect
 import { analyzePosition, cardStatus, summarize } from './analyze.js';
 import { drawFrame, COLORS } from './overlay.js';
 import { clamp } from './geometry.js';
+import { cardCanvas, contactSheet, saveCanvas } from './export.js';
+import { initPhotos } from './photos.js';
 
 const $ = (sel) => document.querySelector(sel);
 const video = $('#video');
@@ -31,6 +33,23 @@ const state = {
   cancelled: false,
   cards: [],
 };
+
+// ---------- Mode: video or photos ----------
+
+const mode = () => document.querySelector('input[name="mode"]:checked').value;
+
+document.querySelectorAll('input[name="mode"]').forEach((el) => el.addEventListener('change', () => {
+  const photos = mode() === 'photos';
+  $('#photos-section').hidden = !photos;
+  if (photos) {
+    video.pause();
+    ['#upload-section', '#setup-section', '#progress-section', '#results-section'].forEach((s) => { $(s).hidden = true; });
+    hideError();
+    initPhotos();
+  } else {
+    show(currentStep);
+  }
+}));
 
 // ---------- Step 1: choose a video ----------
 
@@ -101,7 +120,7 @@ async function analyze() {
   setProgress(0, 'Loading pose model (first run downloads ~15 MB)…');
 
   try {
-    await getLandmarker();
+    await getLandmarker('VIDEO');
     let { start, end } = state.range;
     const isCancelled = () => state.cancelled;
 
@@ -378,79 +397,21 @@ function renderLegend() {
 
 // ---------- Downloads ----------
 
-function wrapText(g, text, maxW) {
-  const words = text.split(/\s+/);
-  const lines = [];
-  let line = '';
-  for (const w of words) {
-    const test = line ? `${line} ${w}` : w;
-    if (g.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-function cardCanvas(p) {
-  const src = state.cards[p].querySelector('canvas');
-  const res = state.results[p];
-  const W = src.width, pad = Math.round(W * 0.04), fs = Math.max(13, Math.round(W / 42));
-  const measure = document.createElement('canvas').getContext('2d');
-  const blocks = res.checks.map((c) => {
-    measure.font = `700 ${fs}px system-ui, sans-serif`;
-    const t = wrapText(measure, `${c.status === 'warn' ? '⚠' : c.status === 'good' ? '✓' : 'ℹ'} ${c.title}`, W - pad * 2);
-    measure.font = `400 ${fs}px system-ui, sans-serif`;
-    const d = c.detail ? wrapText(measure, c.detail, W - pad * 2) : [];
-    return { c, t, d };
-  });
-  const lineH = fs * 1.4;
-  const textH = blocks.reduce((s, b) => s + (b.t.length + b.d.length) * lineH + fs * 0.6, 0) + pad * 1.5;
-  const out = document.createElement('canvas');
-  out.width = W; out.height = src.height + textH;
-  const g = out.getContext('2d');
-  g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
-  g.drawImage(src, 0, 0);
-  let y = src.height + pad;
-  g.textBaseline = 'top';
-  for (const b of blocks) {
-    g.fillStyle = b.c.status === 'warn' ? '#b26a00' : b.c.status === 'good' ? '#1f8a4c' : '#2c6ca3';
-    g.font = `700 ${fs}px system-ui, sans-serif`;
-    for (const l of b.t) { g.fillText(l, pad, y); y += lineH; }
-    g.fillStyle = '#333'; g.font = `400 ${fs}px system-ui, sans-serif`;
-    for (const l of b.d) { g.fillText(l, pad, y); y += lineH; }
-    y += fs * 0.6;
-  }
-  return out;
-}
-
-function saveCanvas(c, name) {
-  c.toBlob((blob) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  }, 'image/png');
-}
-
 function downloadCard(p) {
-  saveCanvas(cardCanvas(p), `swing-${POSITIONS[p].id}.png`);
+  saveCanvas(cardCanvas(state.cards[p].querySelector('canvas'), state.results[p].checks), `swing-${POSITIONS[p].id}.png`);
 }
 
 $('#download-all').addEventListener('click', () => {
-  const srcs = state.cards.map((el) => el.querySelector('canvas'));
-  const cols = 5, cw = 360;
-  const ch = Math.round((srcs[0].height / srcs[0].width) * cw);
-  const out = document.createElement('canvas');
-  out.width = cols * cw; out.height = Math.ceil(srcs.length / cols) * ch;
-  const g = out.getContext('2d');
-  g.fillStyle = '#000'; g.fillRect(0, 0, out.width, out.height);
-  srcs.forEach((c, k) => g.drawImage(c, (k % cols) * cw, Math.floor(k / cols) * ch, cw, ch));
-  saveCanvas(out, 'swing-p1-p10.png');
+  saveCanvas(contactSheet(state.cards.map((el) => el.querySelector('canvas'))), 'swing-p1-p10.png');
 });
 
 // ---------- Helpers ----------
 
+let currentStep = 'upload';
+
 function show(step) {
+  currentStep = step;
+  if (mode() !== 'video') return;
   $('#upload-section').hidden = step !== 'upload';
   $('#setup-section').hidden = step !== 'setup';
   $('#progress-section').hidden = step !== 'progress';

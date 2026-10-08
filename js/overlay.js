@@ -24,7 +24,8 @@ const BONES = [
 /**
  * @param {HTMLCanvasElement} canvas
  * @param {CanvasImageSource} source  frame image at the video's native resolution
- * @param {object} opts { srcW, srcH, ctx (analysis ctx), p, frameIndex, showOverlay, title, status, maxWidth }
+ * @param {object} opts { srcW, srcH, ctx (analysis ctx), p, frameIndex, showOverlay, title, status, maxWidth,
+ *                        handPath (default true; off for single photos) }
  */
 export function drawFrame(canvas, source, opts) {
   const { srcW, srcH, maxWidth = 720 } = opts;
@@ -37,17 +38,19 @@ export function drawFrame(canvas, source, opts) {
   if (opts.showOverlay && opts.ctx) {
     g.save();
     g.scale(scale, scale);
-    drawGuides(g, opts.ctx, opts.frameIndex, Math.max(srcW, srcH));
+    drawGuides(g, opts.ctx, opts.frameIndex, Math.max(srcW, srcH), opts.handPath !== false);
     g.restore();
   }
   drawHeader(g, canvas.width, opts.title, opts.status);
 }
 
-function drawGuides(g, ctx, i, side) {
+function drawGuides(g, ctx, i, side, handPath) {
   const f = ctx.pts[i];
   const a = ctx.pts[ctx.idx[0]];
   const S = sides(ctx.handedness);
   const torso = ctx.orient.torso;
+  // Address-based guides need a P1 to compare against (always true in video mode).
+  const ref = ctx.hasReference !== false;
   // Size strokes and labels for legibility on a ~350px-wide card, but grow them for a large golfer in frame.
   const lw = Math.max(side * 0.005, torso * 0.015);
   const font = Math.max(side * 0.026, torso * 0.09);
@@ -73,45 +76,51 @@ function drawGuides(g, ctx, i, side) {
   };
 
   // Hand path from address to this frame.
-  g.beginPath();
-  g.strokeStyle = COLORS.hands; g.lineWidth = lw * 0.7; g.globalAlpha = 0.85;
-  for (let k = ctx.idx[0]; k <= i; k++) {
-    const h = handsOf(ctx.pts[k]);
-    if (k === ctx.idx[0]) g.moveTo(h.x, h.y); else g.lineTo(h.x, h.y);
+  if (handPath) {
+    g.beginPath();
+    g.strokeStyle = COLORS.hands; g.lineWidth = lw * 0.7; g.globalAlpha = 0.85;
+    for (let k = ctx.idx[0]; k <= i; k++) {
+      const h = handsOf(ctx.pts[k]);
+      if (k === ctx.idx[0]) g.moveTo(h.x, h.y); else g.lineTo(h.x, h.y);
+    }
+    g.stroke(); g.globalAlpha = 1;
   }
-  g.stroke(); g.globalAlpha = 1;
 
   const hipMid = hipMidOf(f), shMid = shoulderMidOf(f);
   const hipMidA = hipMidOf(a), shMidA = shoulderMidOf(a);
 
   if (ctx.view === 'dtl') {
     const dir = ctx.orient.facingDir;
-    // Address spine reference vs current spine.
-    line(hipMidA, extend(hipMidA, shMidA, 1.35), COLORS.reference, lw * 0.8, [2, 2]);
+    if (ref) {
+      // Address spine reference.
+      line(hipMidA, extend(hipMidA, shMidA, 1.35), COLORS.reference, lw * 0.8, [2, 2]);
+      // Butt line: just behind the hips at address.
+      const buttX = hipMidA.x - dir * torso * 0.2;
+      const footY = Math.max(a[LM.lAnkle].y, a[LM.rAnkle].y);
+      line({ x: buttX, y: shMidA.y }, { x: buttX, y: footY }, COLORS.butt, lw * 0.8, [3, 2]);
+      // Shoulder plane: address hands through the trail shoulder.
+      const h0 = handsOf(a), s0 = a[S.shoulder[1]];
+      line(extend(s0, h0, 1.4), extend(h0, s0, 1.5), COLORS.plane, lw * 0.8, [3, 2]);
+      // Head box from address.
+      drawBox(g, a[LM.nose], torso * 0.22, torso * 0.26, COLORS.head, lw * 0.8);
+    }
     line(hipMid, extend(hipMid, shMid, 1.35), COLORS.spine, lw);
-    // Butt line: just behind the hips at address.
-    const buttX = hipMidA.x - dir * torso * 0.2;
-    const footY = Math.max(a[LM.lAnkle].y, a[LM.rAnkle].y);
-    line({ x: buttX, y: shMidA.y }, { x: buttX, y: footY }, COLORS.butt, lw * 0.8, [3, 2]);
-    // Shoulder plane: address hands through the trail shoulder.
-    const h0 = handsOf(a), s0 = a[S.shoulder[1]];
-    line(extend(s0, h0, 1.4), extend(h0, s0, 1.5), COLORS.plane, lw * 0.8, [3, 2]);
-    // Head box from address.
-    drawBox(g, a[LM.nose], torso * 0.22, torso * 0.26, COLORS.head, lw * 0.8);
     // Knee angle readout.
     const knee = f[S.knee[1]];
     label(`${Math.round(jointAngle(f[S.hip[1]], knee, f[S.ankle[1]]))}°`, { x: knee.x + dir * torso * 0.35, y: knee.y }, '#fff');
     const spineDeg = Math.round(Math.atan2(Math.abs(shMid.x - hipMid.x), Math.abs(hipMid.y - shMid.y)) * 180 / Math.PI);
     label(`Spine ${spineDeg}°`, extend(hipMid, shMid, 1.55), COLORS.spine);
   } else {
-    // Head position from address: vertical + horizontal reference.
-    const nA = a[LM.nose];
-    line({ x: nA.x, y: nA.y - torso * 0.5 }, { x: nA.x, y: hipMidA.y }, COLORS.head, lw * 0.8, [3, 2]);
-    line({ x: nA.x - torso * 0.3, y: nA.y }, { x: nA.x + torso * 0.3, y: nA.y }, COLORS.head, lw * 0.6, [2, 2]);
-    // Sway lines at the address hip positions.
-    const footY = Math.max(a[LM.lAnkle].y, a[LM.rAnkle].y);
-    for (const k of [S.hip[0], S.hip[1]]) {
-      line({ x: a[k].x, y: shMidA.y }, { x: a[k].x, y: footY }, COLORS.butt, lw * 0.7, [3, 2]);
+    if (ref) {
+      // Head position from address: vertical + horizontal reference.
+      const nA = a[LM.nose];
+      line({ x: nA.x, y: nA.y - torso * 0.5 }, { x: nA.x, y: hipMidA.y }, COLORS.head, lw * 0.8, [3, 2]);
+      line({ x: nA.x - torso * 0.3, y: nA.y }, { x: nA.x + torso * 0.3, y: nA.y }, COLORS.head, lw * 0.6, [2, 2]);
+      // Sway lines at the address hip positions.
+      const footY = Math.max(a[LM.lAnkle].y, a[LM.rAnkle].y);
+      for (const k of [S.hip[0], S.hip[1]]) {
+        line({ x: a[k].x, y: shMidA.y }, { x: a[k].x, y: footY }, COLORS.butt, lw * 0.7, [3, 2]);
+      }
     }
     // Shoulder and hip lines (extended), plus the spine.
     const ls = f[S.shoulder[0]], ts = f[S.shoulder[1]], lh = f[S.hip[0]], th = f[S.hip[1]];

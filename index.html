@@ -12,11 +12,47 @@
   <header class="site-header">
     <div class="wrap">
       <h1>⛳ Swing P-Positions</h1>
-      <p class="tagline">Upload a swing video and get your 10 P-positions, guide lines and tips. Your video never leaves your device.</p>
+      <p class="tagline">Upload a swing video or photos and get your 10 P-positions, guide lines and tips. Nothing leaves your device.</p>
+      <div class="segmented mode-toggle" role="radiogroup" aria-label="Input type">
+        <input type="radio" name="mode" id="mode-video" value="video" checked><label for="mode-video">🎥 Video</label>
+        <input type="radio" name="mode" id="mode-photos" value="photos"><label for="mode-photos">🖼 Photos</label>
+      </div>
     </div>
   </header>
 
   <main class="wrap">
+    <!-- Photo mode: fill in any of P1–P10 -->
+    <section id="photos-section" hidden>
+      <div class="panel photo-bar">
+        <div class="summary-head">
+          <h2>Your positions</h2>
+          <div class="summary-controls">
+            <label>View
+              <select id="photo-view">
+                <option value="face">Face-on</option>
+                <option value="dtl">Down-the-line</option>
+              </select>
+            </label>
+            <label>Golfer
+              <select id="photo-hand">
+                <option value="right">Right-handed</option>
+                <option value="left">Left-handed</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <p id="photo-view-hint" class="view-hint" hidden></p>
+        <div id="photo-summary"></div>
+        <div class="toolbar">
+          <label class="switch"><input type="checkbox" id="photo-overlay" checked> Show guide lines</label>
+          <button type="button" class="btn small" id="photo-download-all">Download all (PNG)</button>
+          <button type="button" class="btn small ghost" id="photo-clear">Clear all</button>
+        </div>
+        <p class="hint">Use photos taken from the same camera position, with your whole body in view. When you add a P1 (address) photo, the other photos are also compared against it. Photos stay in this tab only and are cleared when you refresh.</p>
+      </div>
+      <div id="photo-rows" class="photo-rows"></div>
+    </section>
+
     <!-- Step 1: upload -->
     <section id="upload-section" class="panel">
       <label id="dropzone" class="dropzone" for="file-input">
@@ -130,7 +166,7 @@
   </main>
 
   <footer class="wrap site-footer">
-    <p>The P-positions are estimated from body pose only (the club isn't tracked), so use the ◀ ▶ buttons to fine-tune any frame. Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
+    <p>Feedback comes from body pose only (the club isn't tracked). In video mode, use the ◀ ▶ buttons to fine-tune any frame. Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
   </footer>
 
   <template id="card-template">
@@ -153,6 +189,41 @@
           <ul></ul>
         </details>
         <button type="button" class="btn small download">Download PNG</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="photo-row-template">
+    <article class="photo-row is-empty">
+      <div class="ref">
+        <div class="ref-media"></div>
+        <div class="ref-text">
+          <h3 class="row-title"></h3>
+          <p class="row-summary"></p>
+          <details class="checkpoints">
+            <summary>Ideal checkpoints</summary>
+            <ul></ul>
+          </details>
+        </div>
+      </div>
+      <div class="slot">
+        <label class="slot-drop dropzone">
+          <input type="file" accept="image/*" hidden>
+          <span class="dz-icon" aria-hidden="true">📷</span>
+          <span class="dz-title"></span>
+          <span class="dz-sub">Tap to choose, or drop an image. Optional.</span>
+        </label>
+        <div class="slot-filled" hidden>
+          <div class="card-media"><canvas></canvas></div>
+          <p class="slot-status muted"></p>
+          <ul class="checks"></ul>
+          <div class="metrics"></div>
+          <div class="row">
+            <button type="button" class="btn small replace">Replace</button>
+            <button type="button" class="btn small ghost remove">Remove</button>
+            <button type="button" class="btn small download">Download PNG</button>
+          </div>
+        </div>
       </div>
     </article>
   </template>
