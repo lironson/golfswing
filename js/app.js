@@ -8,6 +8,7 @@ import { drawFrame, COLORS } from './overlay.js';
 import { clamp } from './geometry.js';
 import { cardCanvas, contactSheet, saveCanvas } from './export.js';
 import { initPhotos } from './photos.js';
+import { renderChecks, renderReadouts } from './ui.js';
 
 const $ = (sel) => document.querySelector(sel);
 const video = $('#video');
@@ -277,29 +278,9 @@ function updateCardText(p) {
   el.querySelector('.frame-info').textContent =
     `${state.times[i].toFixed(2)}s · frame ${i + 1}/${state.times.length}${off ? ` · ${off > 0 ? '+' : ''}${off} from auto` : ' · auto-detected'}`;
 
-  const list = el.querySelector('.checks');
-  list.innerHTML = '';
-  for (const c of res.checks) {
-    const li = document.createElement('li');
-    li.className = c.status;
-    const s = document.createElement('strong'); s.textContent = c.title; li.appendChild(s);
-    if (c.detail) li.appendChild(document.createTextNode(c.detail));
-    list.appendChild(li);
-  }
-  if (!res.checks.length) {
-    const li = document.createElement('li'); li.className = 'info';
-    const s = document.createElement('strong'); s.textContent = 'Reference position'; li.appendChild(s);
-    li.appendChild(document.createTextNode('Compare your frame with the ideal checkpoints below.'));
-    list.appendChild(li);
-  }
-  const metrics = el.querySelector('.metrics');
-  metrics.innerHTML = '';
-  for (const [k, v] of res.metrics) {
-    const s = document.createElement('span');
-    s.append(`${k} `);
-    const b = document.createElement('b'); b.textContent = v; s.appendChild(b);
-    metrics.appendChild(s);
-  }
+  renderChecks(el.querySelector('.checks'), res.checks.length ? res.checks
+    : [{ status: 'info', title: 'Reference position', detail: 'Compare your frame with the ideal checkpoints below.' }]);
+  renderReadouts(el.querySelector('.metrics'), res.metrics);
 }
 
 async function drawCard(p) {
@@ -338,35 +319,39 @@ function renderSummary() {
   const { top, warnCount, goodCount } = summarize(state.results, 3);
   const body = $('#summary-body');
   body.innerHTML = '';
-  const h = document.createElement('p');
-  h.innerHTML = top.length
-    ? '<strong>Top priorities to work on:</strong>'
-    : '<strong>Nice swing!</strong> No major issues were flagged. Check each position against the ideal checkpoints below.';
-  body.appendChild(h);
-  if (top.length) {
-    const ol = document.createElement('ol');
-    ol.className = 'priorities';
+  if (!top.length) {
+    const p = document.createElement('p');
+    p.className = 'summary-line';
+    p.textContent = 'No major issues flagged. Check each position against its checkpoints below.';
+    body.appendChild(p);
+  } else {
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = 'Top priorities';
+    const ul = document.createElement('ul');
+    ul.className = 'todo';
     top.forEach((c) => {
       const li = document.createElement('li');
-      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = POSITIONS[c.p].id;
+      const tag = document.createElement('span'); tag.className = 'p'; tag.textContent = POSITIONS[c.p].id;
       const t = document.createElement('strong'); t.textContent = c.title;
-      li.append(tag, t, document.createElement('br'), c.detail);
-      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Show';
-      btn.addEventListener('click', () => {
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'text-btn'; go.textContent = `Go to ${POSITIONS[c.p].id} →`;
+      go.addEventListener('click', () => {
         const card = state.cards[c.p];
         card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         card.classList.add('flash');
         setTimeout(() => card.classList.remove('flash'), 1500);
       });
-      li.appendChild(btn);
-      ol.appendChild(li);
+      const d = document.createElement('span'); d.className = 'detail'; d.textContent = c.detail;
+      li.append(tag, t, go, d);
+      ul.appendChild(li);
     });
-    body.appendChild(ol);
+    body.append(label, ul);
   }
-  const score = document.createElement('div');
-  score.className = 'score';
-  score.innerHTML = `<span>✓ ${goodCount} checks look good</span><span>⚠ ${warnCount} things to work on</span>`;
-  body.appendChild(score);
+  const tally = document.createElement('div');
+  tally.className = 'tally';
+  tally.innerHTML = `<span><b>${goodCount}</b> GOOD</span><span><b>${warnCount}</b> TO WORK ON</span>`;
+  body.appendChild(tally);
 }
 
 function renderLegend() {
@@ -394,7 +379,9 @@ function renderLegend() {
     const li = document.createElement('li');
     const sw = document.createElement('span');
     sw.className = `swatch${dashed ? ' dashed' : ''}`;
-    sw.style.background = color; sw.style.color = color;
+    // White overlay lines would vanish on the page background, so show them in ink.
+    const c = color.startsWith('rgba(255,255,255') ? 'var(--ink)' : color;
+    sw.style.background = c; sw.style.color = c;
     li.append(sw, text);
     ul.appendChild(li);
   }
@@ -430,6 +417,16 @@ function setProgress(f, text) {
 
 function showError(msg) { const e = $('#error'); e.textContent = msg; e.hidden = false; }
 function hideError() { $('#error').hidden = true; }
+
+// ---------- Dark mode (saved per browser; applied before first paint in index.html) ----------
+
+const darkToggle = $('#dark-toggle');
+darkToggle.checked = document.documentElement.dataset.theme === 'dark';
+darkToggle.addEventListener('change', () => {
+  const theme = darkToggle.checked ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem('theme', theme); } catch { /* storage blocked: theme lasts this visit */ }
+});
 
 if (VIDEO_ENABLED) {
   $('#mode-toggle').hidden = false;

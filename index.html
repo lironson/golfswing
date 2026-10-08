@@ -2,62 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Golf Swing P-Positions</title>
-  <meta name="description" content="Upload a golf swing video and get the 10 P-positions extracted with guide-line overlays and coaching tips. Runs entirely in your browser.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
+  <meta name="description" content="Add photos of any of the 10 golf swing P-positions and get guide-line overlays and coaching notes. Runs entirely in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230b0b0b'/><text x='16' y='23' text-anchor='middle' font-family='Arial Narrow,Arial' font-weight='700' font-size='17' fill='%23ff4f00'>P</text></svg>">
+  <script>
+    // Apply the saved theme before first paint so dark-mode users don't see a white flash.
+    try { document.documentElement.dataset.theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'; }
+    catch (e) { document.documentElement.dataset.theme = 'light'; }
+  </script>
+  <link rel="preload" href="assets/fonts/barlow-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="wrap">
-      <h1>⛳ Swing P-Positions</h1>
-      <p class="tagline">Add photos of your swing positions and get guide lines and tips for each one. Nothing leaves your device.</p>
-      <div id="mode-toggle" class="segmented mode-toggle" role="radiogroup" aria-label="Input type" hidden>
-        <input type="radio" name="mode" id="mode-video" value="video"><label for="mode-video">🎥 Video</label>
-        <input type="radio" name="mode" id="mode-photos" value="photos" checked><label for="mode-photos">🖼 Photos</label>
-      </div>
+  <header class="masthead wrap">
+    <h1>Golf Swing P-Positions<i>.</i></h1>
+    <p class="lede">Add a photo of any position you have and leave the rest blank. Each photo gets guide lines and coaching notes. Nothing leaves your device.</p>
+    <div id="mode-toggle" class="units mode-toggle" role="radiogroup" aria-label="Input type" hidden>
+      <input type="radio" name="mode" id="mode-video" value="video"><label for="mode-video">Video</label>
+      <input type="radio" name="mode" id="mode-photos" value="photos" checked><label for="mode-photos">Photos</label>
     </div>
   </header>
 
   <main class="wrap">
     <!-- Photo mode: fill in any of P1–P10 -->
-    <section id="photos-section">
-      <div class="panel photo-bar">
-        <div class="summary-head">
-          <h2>Your positions</h2>
-          <div class="summary-controls">
-            <label>View
-              <select id="photo-view">
-                <option value="face">Face-on</option>
-                <option value="dtl">Down-the-line</option>
-              </select>
-            </label>
-            <label>Golfer
-              <select id="photo-hand">
-                <option value="right">Right-handed</option>
-                <option value="left">Left-handed</option>
-              </select>
-            </label>
+    <section id="photos-section" class="sheet">
+      <nav id="p-rail" class="p-rail" aria-label="Jump to a position"></nav>
+
+      <div class="sheet-body">
+        <section class="sheet-head" aria-label="Summary and settings">
+          <div class="spec-row">
+            <div class="spec">
+              <span class="label">Positions</span>
+              <span class="count" id="photo-count">0 / 10</span>
+            </div>
+            <div class="spec">
+              <span class="label" id="lbl-hand">Golfer</span>
+              <div class="units" role="radiogroup" aria-labelledby="lbl-hand">
+                <input type="radio" name="photo-hand" id="ph-right" value="right" checked><label for="ph-right">Right</label>
+                <input type="radio" name="photo-hand" id="ph-left" value="left"><label for="ph-left">Left</label>
+              </div>
+            </div>
+            <div class="spec">
+              <span class="label" id="lbl-view">Camera view</span>
+              <div class="units" role="radiogroup" aria-labelledby="lbl-view">
+                <input type="radio" name="photo-view" id="pv-face" value="face" checked><label for="pv-face">Face-on</label>
+                <input type="radio" name="photo-view" id="pv-dtl" value="dtl"><label for="pv-dtl">Down-the-line</label>
+              </div>
+            </div>
           </div>
-        </div>
-        <p id="photo-view-hint" class="view-hint" hidden></p>
-        <div id="photo-summary"></div>
-        <div class="toolbar">
-          <label class="switch"><input type="checkbox" id="photo-overlay" checked> Show guide lines</label>
-          <button type="button" class="btn small" id="photo-download-all">Download all (PNG)</button>
-          <button type="button" class="btn small ghost" id="photo-clear">Clear all</button>
-        </div>
-        <p class="hint">Use photos taken from the same camera position, with your whole body in view. When you add a P1 (address) photo, the other photos are also compared against it. Photos stay in this tab only and are cleared when you refresh.</p>
+          <p id="photo-view-hint" class="view-hint" hidden></p>
+          <div id="photo-summary" class="summary"></div>
+          <div class="actions">
+            <label class="switch" for="photo-overlay">
+              <input type="checkbox" id="photo-overlay" role="switch" checked>
+              <span class="track" aria-hidden="true"><span class="knob"></span></span>
+              <span class="switch-label">Guide lines</span>
+            </label>
+            <button type="button" class="text-btn" id="photo-download-all">Download all</button>
+            <button type="button" class="text-btn" id="photo-clear">Clear all</button>
+          </div>
+          <p class="hint">Take every photo from the same camera spot with your whole body in view. Add a P1 (address) photo and the others are also measured against it. Photos stay in this tab and clear when you refresh.</p>
+        </section>
+
+        <div id="photo-rows" class="plates"></div>
       </div>
-      <div id="photo-rows" class="photo-rows"></div>
     </section>
 
-    <!-- Step 1: upload -->
-    <section id="upload-section" class="panel" hidden>
+    <!-- Video mode (switched off for now; see VIDEO_ENABLED in js/app.js) -->
+    <section id="upload-section" class="block" hidden>
       <label id="dropzone" class="dropzone" for="file-input">
         <input id="file-input" type="file" accept="video/*" hidden>
-        <span class="dz-icon" aria-hidden="true">🎥</span>
         <span class="dz-title">Choose or drop a swing video</span>
         <span class="dz-sub">MP4, MOV or WebM, filmed face-on or down-the-line</span>
       </label>
@@ -73,91 +89,90 @@
       </details>
     </section>
 
-    <!-- Step 2: setup -->
-    <section id="setup-section" class="panel" hidden>
+    <section id="setup-section" class="block" hidden>
       <div class="setup-grid">
         <div class="video-wrap">
           <video id="video" controls playsinline muted preload="auto"></video>
         </div>
         <div class="setup-controls">
           <fieldset>
-            <legend>Golfer</legend>
-            <div class="segmented">
-              <input type="radio" name="hand" id="hand-right" value="right" checked><label for="hand-right">Right-handed</label>
-              <input type="radio" name="hand" id="hand-left" value="left"><label for="hand-left">Left-handed</label>
+            <legend class="label">Golfer</legend>
+            <div class="units">
+              <input type="radio" name="hand" id="hand-right" value="right" checked><label for="hand-right">Right</label>
+              <input type="radio" name="hand" id="hand-left" value="left"><label for="hand-left">Left</label>
             </div>
           </fieldset>
           <fieldset>
-            <legend>Camera view</legend>
-            <div class="segmented">
-              <input type="radio" name="view" id="view-auto" value="auto" checked><label for="view-auto">Auto-detect</label>
+            <legend class="label">Camera view</legend>
+            <div class="units">
+              <input type="radio" name="view" id="view-auto" value="auto" checked><label for="view-auto">Auto</label>
               <input type="radio" name="view" id="view-face" value="face"><label for="view-face">Face-on</label>
               <input type="radio" name="view" id="view-dtl" value="dtl"><label for="view-dtl">Down-the-line</label>
             </div>
           </fieldset>
           <fieldset>
-            <legend>Analyse range <span class="muted" id="range-label"></span></legend>
+            <legend class="label">Analyse range <span class="mono" id="range-label"></span></legend>
             <div class="row">
-              <button type="button" class="btn small" id="set-start">Start = current</button>
-              <button type="button" class="btn small" id="set-end">End = current</button>
-              <button type="button" class="btn small ghost" id="reset-range">Whole clip</button>
+              <button type="button" class="text-btn" id="set-start">Start = current</button>
+              <button type="button" class="text-btn" id="set-end">End = current</button>
+              <button type="button" class="text-btn" id="reset-range">Whole clip</button>
             </div>
             <p class="hint">Optional: scrub the video and trim to a single swing. Long clips are scanned quickly first to find the swing.</p>
           </fieldset>
           <fieldset>
-            <legend>Accuracy</legend>
+            <legend class="label">Accuracy</legend>
             <select id="fps-select">
               <option value="30">Fast (30 samples/s)</option>
               <option value="60" selected>Balanced (60 samples/s)</option>
               <option value="120">Precise (120 samples/s, slow-mo clips)</option>
             </select>
           </fieldset>
-          <div class="row actions">
-            <button type="button" class="btn primary" id="analyze-btn">Analyse swing</button>
-            <button type="button" class="btn ghost" id="change-video">Choose another video</button>
+          <div class="row">
+            <button type="button" class="btn" id="analyze-btn">Analyse swing</button>
+            <button type="button" class="text-btn" id="change-video">Choose another video</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Step 3: progress -->
-    <section id="progress-section" class="panel" hidden>
+    <section id="progress-section" class="block" hidden>
       <p id="progress-text">Loading pose model…</p>
       <div class="progress"><div id="progress-bar"></div></div>
-      <button type="button" class="btn small ghost" id="cancel-btn">Cancel</button>
+      <button type="button" class="text-btn" id="cancel-btn">Cancel</button>
     </section>
 
     <p id="error" class="error" role="alert" hidden></p>
 
-    <!-- Step 4: results -->
     <section id="results-section" hidden>
-      <div class="panel summary">
-        <div class="summary-head">
+      <div class="block summary">
+        <div class="spec-row">
           <h2>Your swing</h2>
-          <div class="summary-controls">
-            <label>View
-              <select id="result-view">
-                <option value="face">Face-on</option>
-                <option value="dtl">Down-the-line</option>
-              </select>
-            </label>
-            <label>Golfer
-              <select id="result-hand">
-                <option value="right">Right-handed</option>
-                <option value="left">Left-handed</option>
-              </select>
-            </label>
-          </div>
+          <label class="spec"><span class="label">View</span>
+            <select id="result-view">
+              <option value="face">Face-on</option>
+              <option value="dtl">Down-the-line</option>
+            </select>
+          </label>
+          <label class="spec"><span class="label">Golfer</span>
+            <select id="result-hand">
+              <option value="right">Right-handed</option>
+              <option value="left">Left-handed</option>
+            </select>
+          </label>
         </div>
-        <p id="view-note" class="muted"></p>
+        <p id="view-note" class="hint"></p>
         <div id="summary-body"></div>
-        <div class="toolbar">
-          <label class="switch"><input type="checkbox" id="overlay-toggle" checked> Show guide lines</label>
-          <button type="button" class="btn small" id="download-all">Download all (PNG)</button>
-          <button type="button" class="btn small ghost" id="new-video">Analyse another swing</button>
+        <div class="actions">
+          <label class="switch" for="overlay-toggle">
+            <input type="checkbox" id="overlay-toggle" role="switch" checked>
+            <span class="track" aria-hidden="true"><span class="knob"></span></span>
+            <span class="switch-label">Guide lines</span>
+          </label>
+          <button type="button" class="text-btn" id="download-all">Download all</button>
+          <button type="button" class="text-btn" id="new-video">Analyse another swing</button>
         </div>
         <details class="legend">
-          <summary>What the lines mean</summary>
+          <summary class="label">What the lines mean</summary>
           <ul id="legend-list"></ul>
         </details>
       </div>
@@ -165,8 +180,13 @@
     </section>
   </main>
 
-  <footer class="wrap site-footer">
-    <p>Feedback comes from body pose only (the club isn't tracked). Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
+  <footer class="foot wrap">
+    <label class="switch" for="dark-toggle">
+      <input type="checkbox" id="dark-toggle" role="switch">
+      <span class="track" aria-hidden="true"><span class="knob"></span></span>
+      <span class="switch-label">Dark mode</span>
+    </label>
+    <p class="hint">Feedback comes from body pose only; the club isn't tracked. Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice, not a substitute for a coach.</p>
   </footer>
 
   <template id="card-template">
@@ -178,50 +198,51 @@
         <button type="button" class="btn icon next" aria-label="Next frame">▶</button>
         <button type="button" class="btn icon reset" title="Back to auto-detected frame" aria-label="Reset frame">↺</button>
       </div>
-      <p class="frame-info muted"></p>
+      <p class="frame-info mono"></p>
       <div class="card-body">
         <h3 class="card-title"></h3>
         <p class="card-summary"></p>
         <ul class="checks"></ul>
-        <div class="metrics"></div>
+        <dl class="metrics"></dl>
         <details class="checkpoints">
-          <summary>Ideal checkpoints</summary>
+          <summary class="label">Ideal checkpoints</summary>
           <ul></ul>
         </details>
-        <button type="button" class="btn small download">Download PNG</button>
+        <button type="button" class="text-btn download">Download PNG</button>
       </div>
     </article>
   </template>
 
   <template id="photo-row-template">
-    <article class="photo-row is-empty">
-      <div class="ref">
+    <article class="plate is-empty">
+      <div class="plate-head">
+        <span class="p-num"></span>
+        <h2 class="row-title"></h2>
+      </div>
+      <div class="plate-ref">
+        <span class="label">Reference</span>
         <div class="ref-media"></div>
-        <div class="ref-text">
-          <h3 class="row-title"></h3>
-          <p class="row-summary"></p>
-          <details class="checkpoints">
-            <summary>Ideal checkpoints</summary>
-            <ul></ul>
-          </details>
-        </div>
+        <p class="row-summary"></p>
+        <span class="label">Checkpoints</span>
+        <ul class="checkpoint-list"></ul>
       </div>
       <div class="slot">
+        <span class="label">Your photo</span>
         <label class="slot-drop dropzone">
           <input type="file" accept="image/*" hidden>
-          <span class="dz-icon" aria-hidden="true">📷</span>
           <span class="dz-title"></span>
-          <span class="dz-sub">Tap to choose, or drop an image. Optional.</span>
+          <span class="dz-sub"></span>
         </label>
         <div class="slot-filled" hidden>
           <div class="card-media"><canvas></canvas></div>
-          <p class="slot-status muted"></p>
+          <p class="slot-status"></p>
+          <span class="label notes-label">Coaching notes</span>
           <ul class="checks"></ul>
-          <div class="metrics"></div>
-          <div class="row">
-            <button type="button" class="btn small replace">Replace</button>
-            <button type="button" class="btn small ghost remove">Remove</button>
-            <button type="button" class="btn small download">Download PNG</button>
+          <dl class="metrics"></dl>
+          <div class="actions">
+            <button type="button" class="text-btn replace">Replace</button>
+            <button type="button" class="text-btn remove">Remove</button>
+            <button type="button" class="text-btn download">Download PNG</button>
           </div>
         </div>
       </div>
