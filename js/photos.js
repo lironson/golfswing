@@ -242,9 +242,12 @@ function renderSummary() {
     head.append(' Add photos of any positions you have below. The rest can stay blank.');
     return;
   }
-  const { top, warnCount, goodCount } = summarize(results, 3);
+  const { top, warnCount, goodCount } = summarize(results, Infinity, { byPosition: true });
   if (!top.length) head.append(' No major issues flagged so far. Compare each photo with its ideal checkpoints.');
   if (top.length) {
+    const h = document.createElement('p');
+    h.innerHTML = '<strong>Things to work on (P1 → P10):</strong>';
+    body.appendChild(h);
     const ol = document.createElement('ol');
     ol.className = 'priorities';
     for (const c of top) {
