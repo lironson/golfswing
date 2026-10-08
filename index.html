@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Golf Swing P-Positions</title>
+  <meta name="description" content="Upload a golf swing video and get the 10 P-positions extracted with guide-line overlays and coaching tips. Runs entirely in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>⛳ Swing P-Positions</h1>
+      <p class="tagline">Upload a swing video and get your 10 P-positions, guide lines and tips. Your video never leaves your device.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Step 1: upload -->
+    <section id="upload-section" class="panel">
+      <label id="dropzone" class="dropzone" for="file-input">
+        <input id="file-input" type="file" accept="video/*" hidden>
+        <span class="dz-icon" aria-hidden="true">🎥</span>
+        <span class="dz-title">Choose or drop a swing video</span>
+        <span class="dz-sub">MP4, MOV or WebM, filmed face-on or down-the-line</span>
+      </label>
+      <details class="tips">
+        <summary>How to film for the best results</summary>
+        <ul>
+          <li><strong>Face-on:</strong> camera square to your chest, level with your hands.</li>
+          <li><strong>Down-the-line:</strong> camera behind your hands, pointing at the target, about hand height.</li>
+          <li>Use a tripod, and keep your <strong>whole body in frame</strong> for the entire swing, with the club fully visible at the top.</li>
+          <li>Film in good light against a plain background, in fitted clothing.</li>
+          <li>Slow-motion (120/240 fps) gives the most accurate positions. Trim the clip to one swing if you can.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Step 2: setup -->
+    <section id="setup-section" class="panel" hidden>
+      <div class="setup-grid">
+        <div class="video-wrap">
+          <video id="video" controls playsinline muted preload="auto"></video>
+        </div>
+        <div class="setup-controls">
+          <fieldset>
+            <legend>Golfer</legend>
+            <div class="segmented">
+              <input type="radio" name="hand" id="hand-right" value="right" checked><label for="hand-right">Right-handed</label>
+              <input type="radio" name="hand" id="hand-left" value="left"><label for="hand-left">Left-handed</label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Camera view</legend>
+            <div class="segmented">
+              <input type="radio" name="view" id="view-auto" value="auto" checked><label for="view-auto">Auto-detect</label>
+              <input type="radio" name="view" id="view-face" value="face"><label for="view-face">Face-on</label>
+              <input type="radio" name="view" id="view-dtl" value="dtl"><label for="view-dtl">Down-the-line</label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Analyse range <span class="muted" id="range-label"></span></legend>
+            <div class="row">
+              <button type="button" class="btn small" id="set-start">Start = current</button>
+              <button type="button" class="btn small" id="set-end">End = current</button>
+              <button type="button" class="btn small ghost" id="reset-range">Whole clip</button>
+            </div>
+            <p class="hint">Optional: scrub the video and trim to a single swing. Long clips are scanned quickly first to find the swing.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Accuracy</legend>
+            <select id="fps-select">
+              <option value="30">Fast (30 samples/s)</option>
+              <option value="60" selected>Balanced (60 samples/s)</option>
+              <option value="120">Precise (120 samples/s, slow-mo clips)</option>
+            </select>
+          </fieldset>
+          <div class="row actions">
+            <button type="button" class="btn primary" id="analyze-btn">Analyse swing</button>
+            <button type="button" class="btn ghost" id="change-video">Choose another video</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: progress -->
+    <section id="progress-section" class="panel" hidden>
+      <p id="progress-text">Loading pose model…</p>
+      <div class="progress"><div id="progress-bar"></div></div>
+      <button type="button" class="btn small ghost" id="cancel-btn">Cancel</button>
+    </section>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <!-- Step 4: results -->
+    <section id="results-section" hidden>
+      <div class="panel summary">
+        <div class="summary-head">
+          <h2>Your swing</h2>
+          <div class="summary-controls">
+            <label>View
+              <select id="result-view">
+                <option value="face">Face-on</option>
+                <option value="dtl">Down-the-line</option>
+              </select>
+            </label>
+            <label>Golfer
+              <select id="result-hand">
+                <option value="right">Right-handed</option>
+                <option value="left">Left-handed</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <p id="view-note" class="muted"></p>
+        <div id="summary-body"></div>
+        <div class="toolbar">
+          <label class="switch"><input type="checkbox" id="overlay-toggle" checked> Show guide lines</label>
+          <button type="button" class="btn small" id="download-all">Download all (PNG)</button>
+          <button type="button" class="btn small ghost" id="new-video">Analyse another swing</button>
+        </div>
+        <details class="legend">
+          <summary>What the lines mean</summary>
+          <ul id="legend-list"></ul>
+        </details>
+      </div>
+      <div id="cards" class="cards"></div>
+    </section>
+  </main>
+
+  <footer class="wrap site-footer">
+    <p>The P-positions are estimated from body pose only (the club isn't tracked), so use the ◀ ▶ buttons to fine-tune any frame. Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
+  </footer>
+
+  <template id="card-template">
+    <article class="card">
+      <div class="card-media"><canvas></canvas></div>
+      <div class="nudge">
+        <button type="button" class="btn icon prev" aria-label="Previous frame">◀</button>
+        <input type="range" class="frame-slider" aria-label="Frame">
+        <button type="button" class="btn icon next" aria-label="Next frame">▶</button>
+        <button type="button" class="btn icon reset" title="Back to auto-detected frame" aria-label="Reset frame">↺</button>
+      </div>
+      <p class="frame-info muted"></p>
+      <div class="card-body">
+        <h3 class="card-title"></h3>
+        <p class="card-summary"></p>
+        <ul class="checks"></ul>
+        <div class="metrics"></div>
+        <details class="checkpoints">
+          <summary>Ideal checkpoints</summary>
+          <ul></ul>
+        </details>
+        <button type="button" class="btn small download">Download PNG</button>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
