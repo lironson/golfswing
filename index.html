@@ -12,17 +12,17 @@
   <header class="site-header">
     <div class="wrap">
       <h1>⛳ Swing P-Positions</h1>
-      <p class="tagline">Upload a swing video or photos and get your 10 P-positions, guide lines and tips. Nothing leaves your device.</p>
-      <div class="segmented mode-toggle" role="radiogroup" aria-label="Input type">
-        <input type="radio" name="mode" id="mode-video" value="video" checked><label for="mode-video">🎥 Video</label>
-        <input type="radio" name="mode" id="mode-photos" value="photos"><label for="mode-photos">🖼 Photos</label>
+      <p class="tagline">Add photos of your swing positions and get guide lines and tips for each one. Nothing leaves your device.</p>
+      <div id="mode-toggle" class="segmented mode-toggle" role="radiogroup" aria-label="Input type" hidden>
+        <input type="radio" name="mode" id="mode-video" value="video"><label for="mode-video">🎥 Video</label>
+        <input type="radio" name="mode" id="mode-photos" value="photos" checked><label for="mode-photos">🖼 Photos</label>
       </div>
     </div>
   </header>
 
   <main class="wrap">
     <!-- Photo mode: fill in any of P1–P10 -->
-    <section id="photos-section" hidden>
+    <section id="photos-section">
       <div class="panel photo-bar">
         <div class="summary-head">
           <h2>Your positions</h2>
@@ -54,7 +54,7 @@
     </section>
 
     <!-- Step 1: upload -->
-    <section id="upload-section" class="panel">
+    <section id="upload-section" class="panel" hidden>
       <label id="dropzone" class="dropzone" for="file-input">
         <input id="file-input" type="file" accept="video/*" hidden>
         <span class="dz-icon" aria-hidden="true">🎥</span>
@@ -166,7 +166,7 @@
   </main>
 
   <footer class="wrap site-footer">
-    <p>Feedback comes from body pose only (the club isn't tracked). In video mode, use the ◀ ▶ buttons to fine-tune any frame. Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
+    <p>Feedback comes from body pose only (the club isn't tracked). Pose detection by <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker" target="_blank" rel="noopener">MediaPipe</a>. For practice and fun, not a substitute for a coach.</p>
   </footer>
 
   <template id="card-template">

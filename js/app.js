@@ -36,9 +36,12 @@ const state = {
 
 // ---------- Mode: video or photos ----------
 
+// Video mode is switched off for now; set to true to bring back the Video | Photos toggle.
+const VIDEO_ENABLED = false;
+
 const mode = () => document.querySelector('input[name="mode"]:checked').value;
 
-document.querySelectorAll('input[name="mode"]').forEach((el) => el.addEventListener('change', () => {
+function applyMode() {
   const photos = mode() === 'photos';
   $('#photos-section').hidden = !photos;
   if (photos) {
@@ -49,7 +52,9 @@ document.querySelectorAll('input[name="mode"]').forEach((el) => el.addEventListe
   } else {
     show(currentStep);
   }
-}));
+}
+
+document.querySelectorAll('input[name="mode"]').forEach((el) => el.addEventListener('change', applyMode));
 
 // ---------- Step 1: choose a video ----------
 
@@ -425,6 +430,12 @@ function setProgress(f, text) {
 
 function showError(msg) { const e = $('#error'); e.textContent = msg; e.hidden = false; }
 function hideError() { $('#error').hidden = true; }
+
+if (VIDEO_ENABLED) {
+  $('#mode-toggle').hidden = false;
+  $('#mode-video').checked = true;
+}
+applyMode();
 
 // Expose state for debugging in the console.
 window.__swing = state;
