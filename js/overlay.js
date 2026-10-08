@@ -4,17 +4,22 @@ import { sides, LM } from './positions.js';
 import { jointAngle } from './geometry.js';
 import { handsOf, hipMidOf, shoulderMidOf } from './detect.js';
 
+// Safety orange for live measurements, white for the skeleton and address references,
+// banana yellow for the hands (the one extra colour, for contrast against sky and grass).
 export const COLORS = {
-  skeleton: 'rgba(255,255,255,0.85)',
-  lead: '#ffd23f',
-  spine: '#3fd0ff',
-  reference: 'rgba(255,255,255,0.9)',
-  plane: '#5ee36b',
-  butt: '#ff5fa2',
-  head: '#ffd23f',
-  hands: '#ff9f43',
-  hips: '#5ee36b',
+  skeleton: 'rgba(255,255,255,0.9)',
+  lead: '#f4cf3a',
+  spine: '#ff4f00',
+  reference: 'rgba(255,255,255,0.95)',
+  plane: 'rgba(255,255,255,0.95)',
+  butt: 'rgba(255,255,255,0.95)',
+  head: 'rgba(255,255,255,0.95)',
+  hands: '#f4cf3a',
+  hips: '#ff4f00',
 };
+
+const DISPLAY = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
 
 const BONES = [
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24],
@@ -66,11 +71,11 @@ function drawGuides(g, ctx, i, side, handPath) {
   };
   const extend = (p1, p2, k) => ({ x: p1.x + (p2.x - p1.x) * k, y: p1.y + (p2.y - p1.y) * k });
   const label = (text, at, color) => {
-    g.font = `600 ${font}px system-ui, sans-serif`;
+    g.font = `600 ${font}px ${MONO}`;
     const w = g.measureText(text).width + font * 0.6;
     const h = font * 1.35;
-    g.fillStyle = 'rgba(0,0,0,0.6)';
-    roundRect(g, at.x - w / 2, at.y - h / 2, w, h, h / 3); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.75)';
+    g.fillRect(at.x - w / 2, at.y - h / 2, w, h);
     g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, at.x, at.y + font * 0.05);
   };
@@ -156,31 +161,23 @@ function drawBox(g, c, hw, hh, color, lw) {
 
 function drawHeader(g, w, title, status) {
   if (!title) return;
-  const fs = Math.max(12, Math.round(w / 26));
+  const fs = Math.max(12, Math.round(w / 24));
   const h = fs * 1.9;
-  g.fillStyle = 'rgba(0,0,0,0.55)';
+  g.fillStyle = 'rgba(0,0,0,0.7)';
   g.fillRect(0, 0, w, h);
-  g.font = `700 ${fs}px system-ui, sans-serif`;
+  g.font = `700 ${fs}px ${DISPLAY}`;
   g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle';
-  g.fillText(title, fs * 0.6, h / 2);
+  g.fillText(title.toUpperCase(), fs * 0.6, h / 2);
   if (status) {
-    const txt = status === 'warn' ? '⚠ Work on' : '✓ Looks good';
-    g.font = `600 ${Math.round(fs * 0.8)}px system-ui, sans-serif`;
-    const tw = g.measureText(txt).width + fs;
-    g.fillStyle = status === 'warn' ? '#f0a020' : '#2fb36a';
-    roundRect(g, w - tw - fs * 0.5, h * 0.18, tw, h * 0.64, h * 0.2); g.fill();
-    g.fillStyle = '#111'; g.textAlign = 'center';
-    g.fillText(txt, w - tw / 2 - fs * 0.5, h / 2 + 1);
+    const txt = status === 'warn' ? 'WORK ON' : 'LOOKS GOOD';
+    const bf = Math.round(fs * 0.75);
+    g.font = `700 ${bf}px ${DISPLAY}`;
+    const tw = g.measureText(txt).width + bf * 1.4;
+    const x = w - tw - fs * 0.5, y = h * 0.2, bh = h * 0.6;
+    g.fillStyle = status === 'warn' ? '#ff4f00' : '#ffffff';
+    g.fillRect(x, y, tw, bh);
+    g.fillStyle = status === 'warn' ? '#ffffff' : '#0b0b0b';
+    g.textAlign = 'center';
+    g.fillText(txt, x + tw / 2, h / 2 + 1);
   }
 }
-
-function roundRect(g, x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
-}
-

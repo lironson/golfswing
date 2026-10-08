@@ -9,6 +9,7 @@ import { analyzePosition, cardStatus, summarize } from './analyze.js';
 import { drawFrame } from './overlay.js';
 import { referenceElement } from './reference.js';
 import { cardCanvas, contactSheet, saveCanvas } from './export.js';
+import { renderChecks, renderReadouts, renderLegend } from './ui.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const MAX_SIDE = 1600;
@@ -21,6 +22,7 @@ const state = {
   // Per position: null (empty) or { img, pts, error, busy, result, ctx }
   slots: Array(10).fill(null),
   rows: [],
+  railLinks: [],
 };
 
 let initialised = false;
@@ -29,8 +31,13 @@ export function initPhotos() {
   if (initialised) return;
   initialised = true;
   buildRows();
-  $('#photo-hand').addEventListener('change', (e) => { state.handedness = e.target.value; refreshReferences(); analyzeAll(); });
-  $('#photo-view').addEventListener('change', (e) => { state.view = e.target.value; analyzeAll(); });
+  buildRail();
+  document.querySelectorAll('input[name="photo-hand"]').forEach((r) => r.addEventListener('change', () => {
+    state.handedness = r.value; refreshReferences(); analyzeAll();
+  }));
+  document.querySelectorAll('input[name="photo-view"]').forEach((r) => r.addEventListener('change', () => {
+    state.view = r.value; suggestView(); updateLegend(); analyzeAll();
+  }));
   $('#photo-overlay').addEventListener('change', (e) => { state.showOverlay = e.target.checked; state.slots.forEach((_, p) => renderRow(p)); });
   $('#photo-clear').addEventListener('click', () => {
     if (!state.slots.some(Boolean) || !confirm('Remove all photos?')) return;
@@ -41,7 +48,12 @@ export function initPhotos() {
     const filled = state.rows.filter((_, p) => state.slots[p] && state.slots[p].result).map((row) => $('canvas', row));
     if (filled.length) saveCanvas(contactSheet(filled), 'swing-photos.png');
   });
+  updateLegend();
   renderSummary();
+}
+
+function updateLegend() {
+  renderLegend($('#photo-legend-list'), state.view, { photos: true });
 }
 
 function buildRows() {
@@ -50,12 +62,14 @@ function buildRows() {
   state.rows = POSITIONS.map((pos, p) => {
     const row = tpl.content.firstElementChild.cloneNode(true);
     row.id = `photo-${pos.id}`;
-    $('.row-title', row).textContent = `${pos.id} · ${pos.name}`;
+    $('.p-num', row).textContent = pos.id;
+    $('.row-title', row).textContent = pos.name;
     $('.row-summary', row).textContent = pos.summary;
-    const cp = $('.checkpoints ul', row);
+    const cp = $('.checkpoint-list', row);
     pos.checkpoints.forEach((t) => { const li = document.createElement('li'); li.textContent = t; cp.appendChild(li); });
     $('.ref-media', row).appendChild(referenceElement(p, state.handedness));
     $('.dz-title', row).textContent = `Add your ${pos.id} photo`;
+    $('.dz-sub', row).textContent = `${pos.name}. Tap to choose, or drop an image. Optional.`;
 
     const input = $('input[type=file]', row);
     input.addEventListener('change', () => { if (input.files[0]) loadPhoto(p, input.files[0]); input.value = ''; });
@@ -74,6 +88,44 @@ function buildRows() {
     });
     list.appendChild(row);
     return row;
+  });
+}
+
+// Rolodex-style index: P1–P10, with the plate in view held in the orange band.
+function buildRail() {
+  const rail = $('#p-rail');
+  state.railLinks = POSITIONS.map((pos, p) => {
+    const a = document.createElement('a');
+    a.href = `#photo-${pos.id}`;
+    a.textContent = pos.id;
+    a.setAttribute('aria-label', `${pos.id} ${pos.name}`);
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      state.rows[p].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setCurrent(p);
+    });
+    rail.appendChild(a);
+    return a;
+  });
+  setCurrent(0);
+  if (!('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) setCurrent(state.rows.indexOf(e.target));
+  }, { rootMargin: '-30% 0px -65% 0px' });
+  state.rows.forEach((row) => io.observe(row));
+}
+
+function setCurrent(p) {
+  state.railLinks.forEach((a, k) => {
+    a.classList.toggle('current', k === p);
+    if (k === p) {
+      a.setAttribute('aria-current', 'true');
+      // Keep the current tab visible on the horizontal phone rail without moving the page.
+      const rail = a.parentElement;
+      if (rail.scrollWidth > rail.clientWidth) rail.scrollTo({ left: a.offsetLeft - rail.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' });
+    } else {
+      a.removeAttribute('aria-current');
+    }
   });
 }
 
@@ -167,12 +219,13 @@ function suggestView() {
   note.textContent = '';
   note.append(`Your P1 photo looks like a ${viewName(view)} shot. `);
   const btn = document.createElement('button');
-  btn.type = 'button'; btn.className = 'btn small';
-  btn.textContent = `Switch to ${viewName(view)}`;
+  btn.type = 'button'; btn.className = 'text-btn';
+  btn.textContent = `Switch to ${viewName(view)} →`;
   btn.addEventListener('click', () => {
     state.view = view;
-    $('#photo-view').value = view;
+    $(`input[name="photo-view"][value="${view}"]`).checked = true;
     note.hidden = true;
+    updateLegend();
     analyzeAll();
   });
   note.appendChild(btn);
@@ -184,6 +237,7 @@ function renderRow(p) {
   const s = state.slots[p];
   const drop = $('.slot-drop', row), filled = $('.slot-filled', row);
   row.classList.toggle('is-empty', !s);
+  if (state.railLinks[p]) state.railLinks[p].classList.toggle('filled', !!(s && s.result));
   drop.hidden = !!s;
   filled.hidden = !s;
   if (!s) return;
@@ -208,69 +262,64 @@ function renderRow(p) {
     canvas.hidden = true;
   }
 
-  if (s.busy) { status.textContent = 'Finding your body position… (the first photo also loads the pose model)'; return; }
-  if (s.error) { status.textContent = `⚠ ${s.error}`; return; }
+  $('.notes-label', row).hidden = !s.result;
+  status.classList.toggle('err', !!s.error);
+  if (s.busy) { status.textContent = 'Finding your body position… The first photo also loads the pose model.'; return; }
+  if (s.error) { status.textContent = s.error; return; }
 
   status.textContent = p > 0 && !(state.slots[0] && state.slots[0].pts)
     ? 'Add a P1 (address) photo to also check head, hip and spine movement against your setup.'
     : '';
   const checks = s.result.checks.length ? s.result.checks : [{ status: 'info', title: 'Reference position', detail: 'Compare your photo with the ideal checkpoints.' }];
-  for (const c of checks) {
-    const li = document.createElement('li');
-    li.className = c.status;
-    const strong = document.createElement('strong'); strong.textContent = c.title; li.appendChild(strong);
-    if (c.detail) li.appendChild(document.createTextNode(c.detail));
-    list.appendChild(li);
-  }
-  for (const [k, v] of s.result.metrics) {
-    const chip = document.createElement('span');
-    chip.append(`${k} `);
-    const b = document.createElement('b'); b.textContent = v; chip.appendChild(b);
-    metrics.appendChild(chip);
-  }
+  renderChecks(list, checks);
+  renderReadouts(metrics, s.result.metrics);
 }
 
 function renderSummary() {
   const results = state.slots.map((s) => (s && s.result) || null);
   const count = results.filter(Boolean).length;
+  $('#photo-count').textContent = `${count} / 10`;
   const body = $('#photo-summary');
   body.innerHTML = '';
-  const head = document.createElement('p');
-  head.innerHTML = `<strong>${count} of 10</strong> positions added.`;
-  body.appendChild(head);
+  const line = document.createElement('p');
+  line.className = 'summary-line';
+  body.appendChild(line);
   if (!count) {
-    head.append(' Add photos of any positions you have below. The rest can stay blank.');
+    line.textContent = 'Nothing added yet. Start with whichever positions you have photos of. The rest can stay blank.';
     return;
   }
   const { top, warnCount, goodCount } = summarize(results, Infinity, { byPosition: true });
-  if (!top.length) head.append(' No major issues flagged so far. Compare each photo with its ideal checkpoints.');
-  if (top.length) {
-    const h = document.createElement('p');
-    h.innerHTML = '<strong>Things to work on (P1 → P10):</strong>';
-    body.appendChild(h);
-    const ol = document.createElement('ol');
-    ol.className = 'priorities';
+  if (!top.length) {
+    line.textContent = 'No major issues flagged so far. Compare each photo with its checkpoints.';
+  } else {
+    line.remove();
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = 'Things to work on · P1 → P10';
+    const ul = document.createElement('ul');
+    ul.className = 'todo';
     for (const c of top) {
       const li = document.createElement('li');
-      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = POSITIONS[c.p].id;
+      const tag = document.createElement('span'); tag.className = 'p'; tag.textContent = POSITIONS[c.p].id;
       const t = document.createElement('strong'); t.textContent = c.title;
-      li.append(tag, t, document.createElement('br'), c.detail);
-      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = 'Show';
-      btn.addEventListener('click', () => {
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'text-btn'; go.textContent = `Go to ${POSITIONS[c.p].id} →`;
+      go.addEventListener('click', () => {
         const row = state.rows[c.p];
         row.scrollIntoView({ behavior: 'smooth', block: 'start' });
         row.classList.add('flash');
         setTimeout(() => row.classList.remove('flash'), 1500);
       });
-      li.appendChild(btn);
-      ol.appendChild(li);
+      const d = document.createElement('span'); d.className = 'detail'; d.textContent = c.detail;
+      li.append(tag, t, go, d);
+      ul.appendChild(li);
     }
-    body.appendChild(ol);
+    body.append(label, ul);
   }
-  const score = document.createElement('div');
-  score.className = 'score';
-  score.innerHTML = `<span>✓ ${goodCount} checks look good</span><span>⚠ ${warnCount} things to work on</span>`;
-  body.appendChild(score);
+  const tally = document.createElement('div');
+  tally.className = 'tally';
+  tally.innerHTML = `<span><b>${goodCount}</b> GOOD</span><span><b>${warnCount}</b> TO WORK ON</span>`;
+  body.appendChild(tally);
 }
 
 // Expose state for debugging in the console.

@@ -12,33 +12,44 @@ function wrapText(g, text, maxW) {
   return lines;
 }
 
-/** An annotated frame canvas with its feedback written underneath. */
+const BODY = '"Barlow", "Helvetica Neue", Arial, sans-serif';
+const DISPLAY = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+const TAGS = { warn: 'WORK ON', good: 'GOOD', info: 'NOTE' };
+
+/** An annotated frame canvas with its coaching notes written underneath (spec-sheet style). */
 export function cardCanvas(src, checks) {
-  const W = src.width, pad = Math.round(W * 0.04), fs = Math.max(13, Math.round(W / 42));
+  const W = src.width, pad = Math.round(W * 0.05), fs = Math.max(13, Math.round(W / 40));
+  const tagW = fs * 5.2, textX = pad + tagW, textW = W - textX - pad;
   const measure = document.createElement('canvas').getContext('2d');
   const blocks = checks.map((c) => {
-    measure.font = `700 ${fs}px system-ui, sans-serif`;
-    const t = wrapText(measure, `${c.status === 'warn' ? '⚠' : c.status === 'good' ? '✓' : 'ℹ'} ${c.title}`, W - pad * 2);
-    measure.font = `400 ${fs}px system-ui, sans-serif`;
-    const d = c.detail ? wrapText(measure, c.detail, W - pad * 2) : [];
+    measure.font = `600 ${fs}px ${BODY}`;
+    const t = wrapText(measure, c.title, textW);
+    measure.font = `400 ${fs}px ${BODY}`;
+    const d = c.detail ? wrapText(measure, c.detail, textW) : [];
     return { c, t, d };
   });
-  const lineH = fs * 1.4;
-  const textH = blocks.reduce((s, b) => s + (b.t.length + b.d.length) * lineH + fs * 0.6, 0) + pad * 1.5;
+  const lineH = fs * 1.4, gap = fs * 0.9;
+  const textH = blocks.reduce((s, b) => s + (b.t.length + b.d.length) * lineH + gap * 2, 0) + pad;
   const out = document.createElement('canvas');
   out.width = W; out.height = src.height + textH;
   const g = out.getContext('2d');
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, out.width, out.height);
   g.drawImage(src, 0, 0);
-  let y = src.height + pad;
+  let y = src.height + pad * 0.6;
   g.textBaseline = 'top';
   for (const b of blocks) {
-    g.fillStyle = b.c.status === 'warn' ? '#b26a00' : b.c.status === 'good' ? '#1f8a4c' : '#2c6ca3';
-    g.font = `700 ${fs}px system-ui, sans-serif`;
-    for (const l of b.t) { g.fillText(l, pad, y); y += lineH; }
-    g.fillStyle = '#333'; g.font = `400 ${fs}px system-ui, sans-serif`;
-    for (const l of b.d) { g.fillText(l, pad, y); y += lineH; }
-    y += fs * 0.6;
+    y += gap;
+    const warn = b.c.status === 'warn';
+    g.fillStyle = warn ? '#ff4f00' : b.c.status === 'good' ? '#0b0b0b' : '#767676';
+    g.fillRect(pad, y + fs * 0.35, fs * 0.55, fs * 0.55);
+    g.font = `700 ${Math.round(fs * 0.85)}px ${DISPLAY}`;
+    g.fillText(TAGS[b.c.status] || 'NOTE', pad + fs * 1.1, y + fs * 0.1);
+    g.fillStyle = '#0b0b0b'; g.font = `600 ${fs}px ${BODY}`;
+    for (const l of b.t) { g.fillText(l, textX, y); y += lineH; }
+    g.fillStyle = '#767676'; g.font = `400 ${fs}px ${BODY}`;
+    for (const l of b.d) { g.fillText(l, textX, y); y += lineH; }
+    y += gap;
+    g.fillStyle = '#e6e6e6'; g.fillRect(pad, y - 1, W - pad * 2, 1);
   }
   return out;
 }

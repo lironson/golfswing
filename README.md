@@ -81,6 +81,8 @@ js/overlay.js       Skeleton and guide-line drawing
 js/photos.js        Photos mode (fill-in-the-blanks P1–P10 page)
 js/reference.js     Drawn reference figures (overridable via assets/reference/)
 js/export.js        PNG export helpers
+js/ui.js            Shared renderers for coaching notes and readouts
+assets/fonts/       Self-hosted Barlow, Barlow Condensed and IBM Plex Mono (SIL Open Font License)
 js/positions.js     P-position descriptions and tunable thresholds
 js/geometry.js      Maths helpers
 tests/              Node unit tests with a synthetic swing generator
