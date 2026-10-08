@@ -2,7 +2,7 @@
 // Each photo is analysed on its own; when P1 is present, the others are also
 // compared against it (aligned by the lead foot and body size).
 
-import { POSITIONS } from './positions.js';
+import { POSITIONS, CLUB_LABELS, clubText } from './positions.js';
 import { detectImage } from './pose.js';
 import { toPixels, feetOrientation, alignTo, guessView } from './detect.js';
 import { analyzePosition, cardStatus, summarize } from './analyze.js';
@@ -15,9 +15,15 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const MAX_SIDE = 1600;
 const viewName = (v) => (v === 'dtl' ? 'down-the-line' : 'face-on');
 
+// The club choice is remembered per browser; storage can be blocked, so it's best-effort.
+function savedClub() {
+  try { return localStorage.getItem('club') === 'iron7' ? 'iron7' : 'driver'; } catch { return 'driver'; }
+}
+
 const state = {
   handedness: 'right',
   view: 'face',
+  club: savedClub(),
   showOverlay: true,
   // Per position: null (empty) or { img, pts, error, busy, result, ctx }
   slots: Array(10).fill(null),
@@ -32,6 +38,13 @@ export function initPhotos() {
   initialised = true;
   buildRows();
   buildRail();
+  const clubRadio = $(`input[name="photo-club"][value="${state.club}"]`);
+  if (clubRadio) clubRadio.checked = true;
+  document.querySelectorAll('input[name="photo-club"]').forEach((r) => r.addEventListener('change', () => {
+    state.club = r.value;
+    try { localStorage.setItem('club', state.club); } catch { /* storage blocked: choice lasts this visit */ }
+    refreshClubText(); refreshReferences(); analyzeAll();
+  }));
   document.querySelectorAll('input[name="photo-hand"]').forEach((r) => r.addEventListener('change', () => {
     state.handedness = r.value; refreshReferences(); analyzeAll();
   }));
@@ -64,10 +77,7 @@ function buildRows() {
     row.id = `photo-${pos.id}`;
     $('.p-num', row).textContent = pos.id;
     $('.row-title', row).textContent = pos.name;
-    $('.row-summary', row).textContent = pos.summary;
-    const cp = $('.checkpoint-list', row);
-    pos.checkpoints.forEach((t) => { const li = document.createElement('li'); li.textContent = t; cp.appendChild(li); });
-    $('.ref-media', row).appendChild(referenceElement(p, state.handedness));
+    $('.ref-media', row).appendChild(referenceElement(p, state.handedness, state.club));
     $('.dz-title', row).textContent = `Add your ${pos.id} photo`;
     $('.dz-sub', row).textContent = `${pos.name}. Tap to choose, or drop an image. Optional.`;
 
@@ -88,6 +98,19 @@ function buildRows() {
     });
     list.appendChild(row);
     return row;
+  });
+  refreshClubText();
+}
+
+// Summary, checkpoints and reference label for the selected club.
+function refreshClubText() {
+  state.rows.forEach((row, p) => {
+    const t = clubText(p, state.club);
+    $('.row-summary', row).textContent = t.summary;
+    $('.ref-label', row).textContent = `Reference · ${CLUB_LABELS[state.club]}`;
+    const cp = $('.checkpoint-list', row);
+    cp.innerHTML = '';
+    t.checkpoints.forEach((c) => { const li = document.createElement('li'); li.textContent = c; cp.appendChild(li); });
   });
 }
 
@@ -133,7 +156,7 @@ function refreshReferences() {
   state.rows.forEach((row, p) => {
     const media = $('.ref-media', row);
     media.innerHTML = '';
-    media.appendChild(referenceElement(p, state.handedness));
+    media.appendChild(referenceElement(p, state.handedness, state.club));
   });
 }
 
@@ -198,6 +221,7 @@ function analyzeSlot(p) {
     idx: [0],
     handedness: state.handedness,
     view: state.view,
+    club: state.club,
     orient: feetOrientation(s.pts, state.handedness),
     hasReference: p === 0 || !!ref,
   };
@@ -254,7 +278,7 @@ function renderRow(p) {
     drawFrame(canvas, s.img, {
       srcW: s.img.width, srcH: s.img.height, ctx: s.ctx, p, frameIndex: 1, handPath: false,
       showOverlay: state.showOverlay && !!s.result,
-      title: `${POSITIONS[p].id} · ${POSITIONS[p].name}`,
+      title: `${POSITIONS[p].id} · ${POSITIONS[p].name} · ${CLUB_LABELS[state.club]}`,
       status: s.result && s.result.checks.length ? cardStatus(s.result.checks) : null,
     });
     canvas.hidden = false;

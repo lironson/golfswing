@@ -1,111 +1,258 @@
 // Static reference data for the 10 P-positions and the tunable thresholds
 // used by detection (detect.js) and feedback (analyze.js).
+//
+// Notes are club-specific. The driver is swept up off a tee from a wide, tilted
+// setup with the ball forward; the 7-iron is struck down (ball, then turf) from a
+// centred setup with a near-neutral spine and the hands ahead. Sources: MyGolfSpy,
+// Golf Monthly, HackMotion, GOLFTEC, Performance Golf, Rotary Swing, Golf Digest.
+
+export const CLUB_IDS = ['driver', 'iron7'];
 
 export const POSITIONS = [
   {
     id: 'P1',
     name: 'Address',
-    summary: 'Athletic setup: tilted from the hips, soft knees, arms hanging naturally under the shoulders.',
-    checkpoints: [
-      'Spine tilted forward roughly 30–45° from the hips (down-the-line)',
-      'Knees flexed about 20–25°, weight over the balls of the feet',
-      'Hands hang roughly under the shoulders',
-      'Trail shoulder slightly lower than the lead shoulder (face-on)',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Wide, tilted setup for an upward strike: ball just inside the lead heel, spine tilted away from the target.',
+        checkpoints: [
+          'Ball just inside the lead heel, teed so about half the ball sits above the crown',
+          'Stance a little wider than shoulder width',
+          'Spine tilted away from the target about 5–15°; trail shoulder clearly lower than the lead (face-on)',
+          'Weight even, or slightly favouring the trail foot',
+          'Shaft close to vertical: hands level with or just ahead of the ball, not pressed forward',
+          'Forward bend from the hips about 30–40°, a touch taller than with an iron (down-the-line)',
+        ],
+      },
+      iron7: {
+        summary: 'Balanced, centred setup to strike down on the ball: ball in the middle of the stance, spine close to neutral.',
+        checkpoints: [
+          'Ball in the middle of the stance, or up to a ball-width forward',
+          'Stance about shoulder width',
+          'Spine close to neutral side-to-side; shoulders nearly level, trail only slightly lower (face-on)',
+          'Weight even, or slightly on the lead foot (about 50–55%)',
+          'Hands slightly ahead of the ball, so the lead arm and shaft form roughly a straight line',
+          'Forward bend from the hips about 35–45°, slightly more bent over than with a driver (down-the-line)',
+        ],
+      },
+    },
   },
   {
     id: 'P2',
     name: 'Takeaway — shaft parallel',
-    summary: 'Club shaft parallel to the ground on the way back; the triangle of arms and shoulders moves together.',
-    checkpoints: [
-      'Hands around hip height, club roughly over the hands (not whipped inside)',
-      'Club face roughly matching spine angle (toe slightly down, not wide open)',
-      'Head and spine angle steady; no early lift',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Low, wide takeaway: arms, hands and club move back together until the shaft is parallel to the ground.',
+        checkpoints: [
+          'Club moves back low and wide; hands stay in front of the chest',
+          'Shaft roughly over the hands and parallel to the target line, not whipped inside',
+          'Clubface roughly matching the spine angle (toe slightly down, not wide open)',
+          'Lead wrist close to neutral; spine tilt from address held, no early lift',
+        ],
+      },
+      iron7: {
+        summary: 'Compact one-piece takeaway: shoulders turn the arms and club back until the shaft is parallel to the ground.',
+        checkpoints: [
+          'Hands around hip height with the shaft over the hands, parallel to the target line',
+          'Clubface roughly matching the spine angle (toe slightly down, not wide open)',
+          'Weight stays centred; head steady over the ball',
+          'Spine angle held, no early lift',
+        ],
+      },
+    },
   },
   {
     id: 'P3',
     name: 'Lead arm parallel — backswing',
-    summary: 'Lead arm parallel to the ground; wrists hinged so the shaft is roughly vertical (90° to the lead arm).',
-    checkpoints: [
-      'Lead arm fairly straight',
-      'Shoulders turned ~60–75°, hips turned ~30–45°',
-      'Head stays centred; no lateral sway away from the target',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Lead arm parallel to the ground on a wide arc; wrists hinged so the shaft points roughly straight up.',
+        checkpoints: [
+          'Lead arm extended for width',
+          'Shoulders turned about 60–75°; pressure moving into the trail foot',
+          'Head may drift slightly behind the ball, but the trail hip stays inside the trail foot',
+          'Shaft about 90° to the lead arm',
+        ],
+      },
+      iron7: {
+        summary: 'Lead arm parallel to the ground; wrists hinged so the shaft is roughly vertical, 90° to the lead arm.',
+        checkpoints: [
+          'Lead arm fairly straight',
+          'Shoulders turned about 60–75°, hips about 30–45°',
+          'Head stays centred over the ball; no lateral sway',
+        ],
+      },
+    },
   },
   {
     id: 'P4',
     name: 'Top of the backswing',
-    summary: 'Full shoulder turn (~90°), lead arm across the chest, weight loaded into the trail side.',
-    checkpoints: [
-      'Shoulders turned about 90°, hips about 45°',
-      'Lead arm reasonably straight; lead wrist flat-to-slightly bowed',
-      'Trail knee keeps some flex; trail hip stays inside the trail foot',
-      'Spine angle from address maintained',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Full turn with the club about parallel to the ground, pointing at the target; weight loaded into the trail side.',
+        checkpoints: [
+          'Shoulders turned about 90°, hips about 45°',
+          'Club near parallel to the ground; lead wrist flat to slightly bowed',
+          'Most pressure on the trail foot, with the trail hip still inside the trail foot',
+          'Head behind the ball; trail knee keeps some flex',
+        ],
+      },
+      iron7: {
+        summary: 'Full but controlled turn with the club at or just short of parallel; a centred pivot over the ball.',
+        checkpoints: [
+          'Shoulders turned about 90°, hips about 40–45°',
+          'Club at or just short of parallel; lead wrist flat to slightly bowed',
+          'Pressure into the trail side without swaying; head roughly over the ball',
+          'Spine angle from address maintained; trail knee keeps some flex',
+        ],
+      },
+    },
   },
   {
     id: 'P5',
     name: 'Lead arm parallel — downswing',
-    summary: 'Lead arm parallel on the way down with the wrist angle (lag) still held; lower body leading.',
-    checkpoints: [
-      'Hips have started rotating open and shifted toward the target',
-      'Hands drop onto plane (below the shoulder plane), not over the top',
-      'Wrist hinge retained — club still well above the hands',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Shift and shallow: pressure moves into the lead foot while the hands drop and the club shallows behind them.',
+        checkpoints: [
+          'Lower body starts the downswing; hips shifting toward the target',
+          'Hands below the shoulder plane; club shallowing, not over the top',
+          'Wrist hinge still held',
+          'Spine still tilted away from the target; head behind the ball',
+        ],
+      },
+      iron7: {
+        summary: 'Pressure shifts into the lead foot early so the low point of the swing moves ahead of the ball; lag held.',
+        checkpoints: [
+          'Hips shift toward the target before they turn',
+          'Hands drop onto plane, below the shoulder plane, not over the top',
+          'Wrist hinge retained; club still well above the hands',
+        ],
+      },
+    },
   },
   {
     id: 'P6',
     name: 'Shaft parallel — downswing',
-    summary: 'Shaft parallel to the ground before impact, hands in front of the trail thigh, lag preserved.',
-    checkpoints: [
-      'Hands around trail-hip height, ahead of the club head',
-      'Hips open ~20–30°, chest still slightly closed',
-      'Spine angle and hip depth maintained (no early extension)',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Shaft parallel before impact with lag held and the club approaching from the inside on a shallow path.',
+        checkpoints: [
+          'Hands in front of the trail thigh; clubhead still behind the hands',
+          'Hips open about 20–30°, chest still slightly closed',
+          'Head stays behind the ball; spine tilt held',
+          'Hip depth kept (no early extension)',
+        ],
+      },
+      iron7: {
+        summary: 'Shaft parallel before impact, hands ahead of the clubhead and pressure already on the lead side.',
+        checkpoints: [
+          'Hands in front of the trail thigh, lag preserved',
+          'Hips open about 20–30°, chest still slightly closed',
+          'Most pressure on the lead foot',
+          'Spine angle and hip depth maintained (no early extension)',
+        ],
+      },
+    },
   },
   {
     id: 'P7',
     name: 'Impact',
-    summary: 'Hands slightly ahead of the ball (forward shaft lean), hips open, weight on the lead side.',
-    checkpoints: [
-      'Hands ahead of their address position toward the target',
-      'Hips open ~35–45°, shoulders roughly square',
-      'Head behind the ball; spine tilted slightly away from the target',
-      'Hips stay back (hip depth kept) and spine angle retained',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Hit up on the ball: head behind it, spine tilted back, shaft close to vertical, hips open.',
+        checkpoints: [
+          'Shaft roughly vertical, at most a little forward lean; hands level with or just ahead of the ball',
+          'Head well behind the ball; spine tilted away from the target, more than with an iron',
+          'Hips open about 35–45°, shoulders near square; most weight on the lead foot',
+          'Sweep the ball up off the tee with a level-to-upward strike, no divot',
+        ],
+      },
+      iron7: {
+        summary: 'Ball first, then turf: hands ahead of the ball with forward shaft lean and weight on the lead side.',
+        checkpoints: [
+          'Hands ahead of the ball, over the lead thigh; shaft leaning toward the target',
+          'About 70–80% or more of the weight on the lead foot',
+          'Hips open about 35–45°, shoulders near square',
+          'Head over or just behind the ball; descending strike with the divot starting after the ball',
+        ],
+      },
+    },
   },
   {
     id: 'P8',
     name: 'Shaft parallel — follow-through',
-    summary: 'Shaft parallel past impact with both arms extended down the target line.',
-    checkpoints: [
-      'Both arms extended (no chicken wing)',
-      'Chest rotating toward the target',
-      'Posture maintained through the ball',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Shaft parallel past impact with both arms extending out and up as the body keeps rotating.',
+        checkpoints: [
+          'Both arms extended (no chicken wing)',
+          'Chest rotating toward the target; head still behind where the ball was',
+          'Posture held through the strike',
+        ],
+      },
+      iron7: {
+        summary: 'Shaft parallel past impact with both arms extended low down the target line.',
+        checkpoints: [
+          'Both arms extended (no chicken wing); club stays low for longer after the strike',
+          'Chest rotating toward the target',
+          'Posture maintained through the ball',
+        ],
+      },
+    },
   },
   {
     id: 'P9',
     name: 'Trail arm parallel — follow-through',
-    summary: 'Trail arm parallel to the ground, club hinged back up; body continuing to rotate.',
-    checkpoints: [
-      'Trail arm straight and parallel to the ground',
-      'Chest facing the target or beyond',
-      'Weight mostly on the lead foot; trail heel coming up',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Trail arm parallel to the ground, club hinging back up as the chest rises and keeps rotating.',
+        checkpoints: [
+          'Trail arm straight and parallel to the ground',
+          'Chest facing the target or beyond, starting to rise',
+          'Weight mostly on the lead foot; trail heel coming up',
+        ],
+      },
+      iron7: {
+        summary: 'Trail arm parallel to the ground, club hinged back up; body still rotating with the chest fairly level.',
+        checkpoints: [
+          'Trail arm straight and parallel to the ground',
+          'Chest facing the target or beyond',
+          'Weight mostly on the lead foot; trail heel coming up',
+        ],
+      },
+    },
   },
   {
     id: 'P10',
     name: 'Finish',
-    summary: 'Balanced, fully rotated finish: belt buckle to the target, weight on the lead foot, standing tall.',
-    checkpoints: [
-      'Hips over the lead foot, trail foot up on its toe',
-      'Chest and belt buckle facing the target',
-      'Balanced long enough to hold the pose',
-    ],
+    clubs: {
+      driver: {
+        summary: 'Tall, full finish: chest high and facing the target, weight on the lead foot, balanced.',
+        checkpoints: [
+          'Hips over the lead foot, trail foot up on its toe',
+          'Chest and belt buckle facing the target, chest higher than with an iron',
+          'Balanced long enough to hold the pose for three seconds',
+        ],
+      },
+      iron7: {
+        summary: 'Balanced, fully rotated finish: belt buckle to the target, weight on the lead foot, standing tall.',
+        checkpoints: [
+          'Hips over the lead foot, trail foot up on its toe',
+          'Chest and belt buckle facing the target',
+          'Balanced long enough to hold the pose for three seconds',
+        ],
+      },
+    },
   },
 ];
+
+export const CLUB_LABELS = { driver: 'Driver', iron7: '7-Iron' };
+
+/** Summary and checkpoints for position p (0-based) with the given club. */
+export function clubText(p, club = 'driver') {
+  return POSITIONS[p].clubs[club] || POSITIONS[p].clubs.driver;
+}
 
 // All detection/analysis thresholds in one place. Distances are in units of
 // torso length (mid-hip to mid-shoulder at address) unless stated otherwise.
@@ -141,14 +288,37 @@ export const CONFIG = {
     headSwayWarn: 0.15,
     headAheadWarn: 0.1,
     shoulderTiltMin: 2, // degrees, trail shoulder lower at address
+    shoulderTiltMax: 20,
     leadArmBentWarn: 150, // elbow interior angle below this = bent
     shoulderTurnRatioWarn: 0.75, // shoulder width at top / address above this = restricted turn
     hipSlideMax: 0.12, // lead hip beyond lead ankle (toward target) at impact
     handsBehindWarn: 0.05, // hands behind address position at impact
+    impactTiltMin: 0, // spine tilt away from the target at impact, degrees
+    impactTiltMax: 30,
     trailArmBentWarn: 145,
     finishHipOverLead: 0.35, // hip centre must be within this fraction of stance from the lead ankle
   },
+
+  // Club-specific overrides of the values above.
+  clubs: {
+    driver: {
+      // Taller, wider setup; tilted away from the target; shaft near vertical at impact.
+      dtl: { spineMin: 25, spineMax: 42, handsReachWarn: 0.32 },
+      faceOn: { shoulderTiltMin: 3, shoulderTiltMax: 18, handsBehindWarn: 0.15, impactTiltMin: 5, impactTiltMax: 35, headAheadWarn: 0.06 },
+    },
+    iron7: {
+      // Centred setup, shoulders nearly level; hands must lead at impact.
+      dtl: { spineMin: 30, spineMax: 48, handsReachWarn: 0.25 },
+      faceOn: { shoulderTiltMin: 0, shoulderTiltMax: 12, handsBehindWarn: 0.03, impactTiltMin: 0, impactTiltMax: 28, headAheadWarn: 0.1 },
+    },
+  },
 };
+
+/** Thresholds for a camera view ('dtl' | 'face') and club, with club overrides applied. */
+export function thresholds(view, club = 'driver') {
+  const key = view === 'dtl' ? 'dtl' : 'faceOn';
+  return { ...CONFIG[key], ...((CONFIG.clubs[club] || CONFIG.clubs.driver)[key]) };
+}
 
 // MediaPipe Pose landmark indices.
 export const LM = {

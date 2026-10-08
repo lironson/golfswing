@@ -38,13 +38,21 @@ The page lists all 10 positions. Each row shows:
 
 Every photo is checked on its own (posture, arm extension, spine tilt, weight at the finish, and so on). **If you add a P1 (address) photo**, the other photos are also compared against it for head movement, spine-angle loss, hip sway and shift, and hands at impact. Photos are lined up by the lead foot and body size, so small framing differences are fine, but take them from the same camera spot. Photos are kept only for the current tab and are cleared when you refresh.
 
+## Driver and 7-iron
+
+Use the **Club** toggle (Driver | 7-Iron) at the top of the page. It changes three things, and your choice is remembered in this browser:
+
+- **Notes:** each position's summary and checkpoints are written separately for each club. The driver is swept up off a tee from a wide, tilted setup with the ball just inside the lead heel. The 7-iron is struck down (ball, then turf) from a centred setup with a near-neutral spine and the hands ahead.
+- **Reference figures:** the driver figure has a wider stance, the ball forward on a tee and more spine tilt. The 7-iron figure has the ball centred, a near-neutral spine and forward shaft lean at impact.
+- **Feedback:** some rules use club-specific ranges. For example, shoulder tilt at address (more for driver, nearly level for the 7-iron), hands at impact (the 7-iron must lead with the hands; the driver shaft can be near vertical) and spine tilt at impact.
+
 ## Feedback checks
 
 **Down-the-line:** spine tilt and knee flex at address, arm hang, takeaway path, spine angle kept through impact (early extension), hips moving off the butt line, a possible over-the-top move, head dipping or lifting, trail-knee straightening, and a tall finish.
 
 **Face-on:** shoulder tilt at address, lead-arm extension, head sway, hip sway, shoulder turn, lower body leading the downswing, hands ahead at impact (flip), spine tilt at impact, hip slide, extension after impact (chicken wing), and weight on the lead foot at the finish.
 
-All thresholds live in `CONFIG` in [`js/positions.js`](js/positions.js) if you want to tune them.
+All thresholds live in `CONFIG` in [`js/positions.js`](js/positions.js) if you want to tune them; `CONFIG.clubs` holds the driver and 7-iron overrides.
 
 ## Filming tips
 
@@ -70,7 +78,7 @@ npm test
 
 ## Releasing changes
 
-`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.08-1`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
+`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.08-2`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
 
 ## Project layout
 

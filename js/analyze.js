@@ -3,7 +3,7 @@
 // Each rule returns { status: 'good' | 'warn' | 'info', title, detail, priority }.
 // Priority 1 = biggest impact on ball striking, 3 = minor.
 
-import { CONFIG, sides } from './positions.js';
+import { thresholds, sides } from './positions.js';
 import { jointAngle, angleFromVertical, deg } from './geometry.js';
 import { handsOf, hipMidOf, shoulderMidOf } from './detect.js';
 
@@ -85,19 +85,21 @@ const RELATIVE = ['spineA', 'trailKneeA', 'shoulderTurnRatio', 'headTarget', 'he
 export function analyzePosition(p, frameIndex, ctx) {
   const m = measure(frameIndex, ctx);
   const rel = ctx.hasReference !== false;
-  const checks = ctx.view === 'dtl' ? dtlChecks(p, m, rel) : faceOnChecks(p, m, rel);
+  const club = ctx.club === 'iron7' ? 'iron7' : 'driver';
+  const checks = ctx.view === 'dtl' ? dtlChecks(p, m, rel, club) : faceOnChecks(p, m, rel, club);
   checks.push(...commonChecks(p, m));
   return { checks, metrics: readouts(p, m, ctx.view, rel) };
 }
 
-function dtlChecks(p, m, rel) {
-  const c = CONFIG.dtl;
+function dtlChecks(p, m, rel, club) {
+  const c = thresholds('dtl', club);
   const out = [];
   const spineLoss = m.spineA - m.spine;
+  const range = club === 'iron7' ? '~35–45° with a 7-iron' : '~30–40° with a driver';
 
   if (p === 0) {
-    if (m.spine < c.spineMin) out.push(warn('Too upright at address', `Spine tilt is ${fmt(m.spine)}°. Hinge more from the hips (aim for ~30–45°) so the arms can hang and swing freely.`, 2));
-    else if (m.spine > c.spineMax) out.push(warn('Bent over too much', `Spine tilt is ${fmt(m.spine)}°. Stand a little taller (~30–45°) to make turning easier and protect your back.`, 2));
+    if (m.spine < c.spineMin) out.push(warn('Too upright at address', `Spine tilt is ${fmt(m.spine)}°. Hinge more from the hips (aim for ${range}) so the arms can hang and swing freely.`, 2));
+    else if (m.spine > c.spineMax) out.push(warn('Bent over too much', `Spine tilt is ${fmt(m.spine)}°. Stand a little taller (aim for ${range}) to make turning easier and protect your back.`, 2));
     else out.push(good('Good spine tilt', `${fmt(m.spine)}° of forward bend from the hips.`));
 
     if (m.trailKnee < c.kneeFlexMin) out.push(warn('Too much knee bend', `Knee angle ${fmt(m.trailKnee)}°. Sitting too low restricts the hip turn — straighten the legs slightly.`, 3));
@@ -164,15 +166,25 @@ function dtlChecks(p, m, rel) {
   return out;
 }
 
-function faceOnChecks(p, m, rel) {
-  const c = CONFIG.faceOn;
+function faceOnChecks(p, m, rel, club) {
+  const c = thresholds('face', club);
+  const iron = club === 'iron7';
   const out = [];
 
   if (p === 0) {
-    if (m.shoulderTilt >= c.shoulderTiltMin && m.shoulderTilt <= 20) out.push(good('Good shoulder tilt', `Trail shoulder ${fmt(m.shoulderTilt)}° lower than the lead.`));
-    else if (m.shoulderTilt < 0) out.push(warn('Reverse shoulder tilt', 'Your lead shoulder is lower than your trail shoulder. Tilt the spine slightly away from the target so the trail shoulder sits lower (the trail hand is lower on the grip).', 2));
-    else if (m.shoulderTilt > 20) out.push(warn('Too much tilt away', `Shoulders are tilted ${fmt(m.shoulderTilt)}°. A little less tilt helps avoid hitting behind the ball.`, 3));
-    else out.push(info('Shoulders nearly level', 'A slight tilt (trail shoulder lower) usually helps. Let the trail shoulder sit a touch lower.'));
+    if (m.shoulderTilt < 0) {
+      out.push(warn('Reverse shoulder tilt', 'Your lead shoulder is lower than your trail shoulder. Tilt the spine slightly away from the target so the trail shoulder sits lower (the trail hand is lower on the grip).', 2));
+    } else if (m.shoulderTilt > c.shoulderTiltMax) {
+      out.push(iron
+        ? warn('Too much tilt for an iron', `Shoulders are tilted ${fmt(m.shoulderTilt)}°. With a 7-iron keep the spine close to neutral and the shoulders nearly level, or the low point moves behind the ball (fat and thin shots).`, 2)
+        : warn('Too much tilt away', `Shoulders are tilted ${fmt(m.shoulderTilt)}°. A little less tilt helps avoid hitting up too steeply or behind the ball.`, 3));
+    } else if (m.shoulderTilt < c.shoulderTiltMin) {
+      out.push(warn('Add some tilt for the driver', `Shoulders are nearly level (${fmt(m.shoulderTilt)}°). With a driver, tilt the spine away from the target so the trail shoulder sits clearly lower; it sets up the upward strike.`, 2));
+    } else {
+      out.push(good('Good shoulder tilt', iron
+        ? `Shoulders close to level (trail ${fmt(m.shoulderTilt)}° lower), good for striking down on an iron.`
+        : `Trail shoulder ${fmt(m.shoulderTilt)}° lower than the lead, good for hitting up on the driver.`));
+    }
   }
 
   if (p === 2 || p === 3) {
@@ -197,10 +209,20 @@ function faceOnChecks(p, m, rel) {
   }
 
   if (p === 6) {
-    if (!rel) { /* hands vs address needs P1 */ } else if (m.handsTarget < -c.handsBehindWarn) out.push(warn('Hands behind at impact (flip)', 'Hands are behind their address position. Lead with the hands — forward shaft lean compresses the ball.', 1));
-    else out.push(good('Hands ahead at impact', 'Hands are level with or ahead of their address position (forward shaft lean).'));
+    if (!rel) {
+      // Hands vs address needs P1.
+    } else if (m.handsTarget < -c.handsBehindWarn) {
+      out.push(warn('Hands behind at impact (flip)', iron
+        ? 'Hands are behind their address position. With a 7-iron the hands lead the clubhead at impact. Forward shaft lean gives ball-first contact and compresses the ball.'
+        : 'Hands are well behind their address position, a sign of flipping. Even with the driver, the hands should be level with or just ahead of the ball.', 1));
+    } else {
+      out.push(good(iron ? 'Hands ahead at impact' : 'Hands level at impact', iron
+        ? 'Hands are level with or ahead of their address position (forward shaft lean).'
+        : 'Hands are close to their address position, so the shaft is near vertical, good for an upward strike.'));
+    }
     if (m.spineAway < 0) out.push(warn('Upper body ahead of the ball', 'Spine is tilted toward the target at impact. Keep your head behind the ball with a slight tilt away from the target.', 1));
-    else if (m.spineAway > 30) out.push(warn('Hanging back', `Spine tilted ${fmt(m.spineAway)}° away from the target. Get more weight to the lead side through impact.`, 2));
+    else if (m.spineAway < c.impactTiltMin) out.push(warn('Stay behind the ball', `Spine is only tilted ${fmt(m.spineAway)}° away from the target. With a driver, keep the head behind the ball and the spine tilted back to hit up on it.`, 2));
+    else if (m.spineAway > c.impactTiltMax) out.push(warn('Hanging back', `Spine tilted ${fmt(m.spineAway)}° away from the target. Get more weight to the lead side through impact.`, 2));
     else out.push(good('Good spine tilt at impact', `Tilted ${fmt(m.spineAway)}° away from the target.`));
     if (rel && m.headTarget > c.headAheadWarn) out.push(warn('Head sliding toward the target', 'Your head has moved ahead of where it started. Keep it behind the ball through impact.', 2));
     if (m.leadHipPastAnkle > c.hipSlideMax) out.push(warn('Hips sliding too far', 'Your lead hip has slid past the lead foot. Rotate the hips open rather than sliding them.', 2));
