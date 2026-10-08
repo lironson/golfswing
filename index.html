@@ -16,7 +16,7 @@
   <!-- Versioned URLs make browsers fetch fresh files after each release instead of mixing
        cached old CSS/JS with new HTML. Bump ASSET VERSION (2026.10.08-1) everywhere in this file
        whenever css/ or js/ changes; tests/assets.test.js checks they all match. -->
-  <link rel="stylesheet" href="css/styles.css?v=2026.10.08-2">
+  <link rel="stylesheet" href="css/styles.css?v=2026.10.08-3">
 </head>
 <body>
   <header class="masthead wrap">
@@ -73,11 +73,20 @@
             <button type="button" class="text-btn" id="photo-download-all">Download all</button>
             <button type="button" class="text-btn" id="photo-clear">Clear all</button>
           </div>
-          <details class="legend" id="photo-legend">
-            <summary class="label">What the lines mean</summary>
-            <ul id="photo-legend-list"></ul>
-          </details>
-          <p class="hint">Take every photo from the same camera spot with your whole body in view. Add a P1 (address) photo and the others are also measured against it. Photos stay in this tab and clear when you refresh.</p>
+          <div class="drops">
+            <details class="drop" id="photo-tips">
+              <summary class="label">Photo tips</summary>
+              <ul class="drop-list">
+                <li>Take every photo from the same camera spot, with your whole body and the club in view.</li>
+                <li>Add a P1 (address) photo and the others are also measured against it.</li>
+                <li>Photos stay in this tab only and clear when you refresh.</li>
+              </ul>
+            </details>
+            <details class="drop legend" id="photo-legend">
+              <summary class="label">What the lines mean</summary>
+              <ul id="photo-legend-list"></ul>
+            </details>
+          </div>
         </section>
 
         <div id="photo-rows" class="plates"></div>
@@ -198,7 +207,7 @@
           <button type="button" class="text-btn" id="download-all">Download all</button>
           <button type="button" class="text-btn" id="new-video">Analyse another swing</button>
         </div>
-        <details class="legend">
+        <details class="drop legend">
           <summary class="label">What the lines mean</summary>
           <ul id="legend-list"></ul>
         </details>
@@ -231,9 +240,9 @@
         <p class="card-summary"></p>
         <ul class="checks"></ul>
         <dl class="metrics"></dl>
-        <details class="checkpoints">
-          <summary class="label">Ideal checkpoints</summary>
-          <ul></ul>
+        <details class="drop checkpoints">
+          <summary class="label">Checkpoints</summary>
+          <ul class="checkpoint-list"></ul>
         </details>
         <button type="button" class="text-btn download">Download PNG</button>
       </div>
@@ -250,8 +259,10 @@
         <span class="label ref-label">Reference</span>
         <div class="ref-media"></div>
         <p class="row-summary"></p>
-        <span class="label">Checkpoints</span>
-        <ul class="checkpoint-list"></ul>
+        <details class="drop checkpoints-drop">
+          <summary class="label">Checkpoints <span class="drop-count"></span></summary>
+          <ul class="checkpoint-list"></ul>
+        </details>
       </div>
       <div class="slot">
         <span class="label">Your photo</span>
@@ -279,19 +290,19 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/analyze.js": "./js/analyze.js?v=2026.10.08-2",
-      "./js/detect.js": "./js/detect.js?v=2026.10.08-2",
-      "./js/export.js": "./js/export.js?v=2026.10.08-2",
-      "./js/geometry.js": "./js/geometry.js?v=2026.10.08-2",
-      "./js/overlay.js": "./js/overlay.js?v=2026.10.08-2",
-      "./js/photos.js": "./js/photos.js?v=2026.10.08-2",
-      "./js/pose.js": "./js/pose.js?v=2026.10.08-2",
-      "./js/positions.js": "./js/positions.js?v=2026.10.08-2",
-      "./js/reference.js": "./js/reference.js?v=2026.10.08-2",
-      "./js/ui.js": "./js/ui.js?v=2026.10.08-2"
+      "./js/analyze.js": "./js/analyze.js?v=2026.10.08-3",
+      "./js/detect.js": "./js/detect.js?v=2026.10.08-3",
+      "./js/export.js": "./js/export.js?v=2026.10.08-3",
+      "./js/geometry.js": "./js/geometry.js?v=2026.10.08-3",
+      "./js/overlay.js": "./js/overlay.js?v=2026.10.08-3",
+      "./js/photos.js": "./js/photos.js?v=2026.10.08-3",
+      "./js/pose.js": "./js/pose.js?v=2026.10.08-3",
+      "./js/positions.js": "./js/positions.js?v=2026.10.08-3",
+      "./js/reference.js": "./js/reference.js?v=2026.10.08-3",
+      "./js/ui.js": "./js/ui.js?v=2026.10.08-3"
     }
   }
   </script>
-  <script type="module" src="js/app.js?v=2026.10.08-2"></script>
+  <script type="module" src="js/app.js?v=2026.10.08-3"></script>
 </body>
 </html>
