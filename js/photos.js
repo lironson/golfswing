@@ -49,7 +49,7 @@ export function initPhotos() {
     state.handedness = r.value; refreshReferences(); analyzeAll();
   }));
   document.querySelectorAll('input[name="photo-view"]').forEach((r) => r.addEventListener('change', () => {
-    state.view = r.value; suggestView(); updateLegend(); analyzeAll();
+    state.view = r.value; suggestView(); updateLegend(); refreshClubText(); refreshReferences(); analyzeAll();
   }));
   $('#photo-overlay').addEventListener('change', (e) => { state.showOverlay = e.target.checked; state.slots.forEach((_, p) => renderRow(p)); });
   $('#photo-clear').addEventListener('click', () => {
@@ -77,7 +77,7 @@ function buildRows() {
     row.id = `photo-${pos.id}`;
     $('.p-num', row).textContent = pos.id;
     $('.row-title', row).textContent = pos.name;
-    $('.ref-media', row).appendChild(referenceElement(p, state.handedness, state.club));
+    $('.ref-media', row).appendChild(referenceElement(p, state.handedness, state.club, state.view));
     $('.dz-title', row).textContent = `Add your ${pos.id} photo`;
     $('.dz-sub', row).textContent = 'Tap to choose, or drop an image. Optional.';
 
@@ -107,7 +107,7 @@ function refreshClubText() {
   state.rows.forEach((row, p) => {
     const t = clubText(p, state.club);
     $('.row-summary', row).textContent = t.summary;
-    $('.ref-label', row).textContent = `Reference · ${CLUB_LABELS[state.club]}`;
+    $('.ref-label', row).textContent = `Reference · ${CLUB_LABELS[state.club]} · ${state.view === 'dtl' ? 'Down-the-line' : 'Face-on'}`;
     $('.drop-count', row).textContent = `· ${t.checkpoints.length}`;
     const cp = $('.checkpoint-list', row);
     cp.innerHTML = '';
@@ -157,7 +157,7 @@ function refreshReferences() {
   state.rows.forEach((row, p) => {
     const media = $('.ref-media', row);
     media.innerHTML = '';
-    media.appendChild(referenceElement(p, state.handedness, state.club));
+    media.appendChild(referenceElement(p, state.handedness, state.club, state.view));
   });
 }
 
@@ -251,6 +251,8 @@ function suggestView() {
     $(`input[name="photo-view"][value="${view}"]`).checked = true;
     note.hidden = true;
     updateLegend();
+    refreshClubText();
+    refreshReferences();
     analyzeAll();
   });
   note.appendChild(btn);
