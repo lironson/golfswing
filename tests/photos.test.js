@@ -74,3 +74,24 @@ test('video-mode detection is unaffected by photo helpers', () => {
   const { indices } = detectPositions(prepareFrames(frames, width, height), frames.map((f) => f.t), 'right');
   assert.equal(indices.length, 10);
 });
+
+test('summarize byPosition lists every warning in P order', async () => {
+  const { summarize } = await import('../js/analyze.js');
+  const w = (title, priority) => ({ status: 'warn', title, detail: '', priority });
+  const results = Array(10).fill(null);
+  results[6] = { checks: [w('Hands behind at impact (flip)', 1), w('Head sliding toward the target', 2)] };
+  results[0] = { checks: [w('Reverse shoulder tilt', 2), { status: 'good', title: 'ok', priority: 9 }] };
+  results[4] = { checks: [w('Shift toward the target', 1)] };
+  results[5] = { checks: [w('Shift toward the target', 1)] };
+
+  const s = summarize(results, Infinity, { byPosition: true });
+  assert.deepEqual(s.top.map((c) => c.p), [0, 4, 5, 6, 6]);
+  assert.equal(s.top[3].title, 'Hands behind at impact (flip)'); // priority order within a position
+  assert.equal(s.warnCount, s.top.length);
+  assert.equal(s.goodCount, 1);
+
+  const d = summarize(results, 3);
+  assert.equal(d.top.length, 3);
+  assert.equal(d.warnCount, 4); // de-duplicated by title
+  assert.deepEqual(d.top.map((c) => c.priority), [1, 1, 2]);
+});

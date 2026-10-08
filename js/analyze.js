@@ -255,15 +255,23 @@ export function cardStatus(checks) {
   return checks.some((c) => c.status === 'warn') ? 'warn' : 'good';
 }
 
-/** Top-N priorities across all positions, de-duplicated by title. */
-export function summarize(results, n = 3) {
+/**
+ * Warnings across all positions.
+ * Default: top-N by priority, de-duplicated by title.
+ * byPosition: every warning, ordered P1 → P10 (then by priority); repeats are kept
+ * when they occur at different positions.
+ */
+export function summarize(results, n = 3, { byPosition = false } = {}) {
   const seen = new Set();
   const warns = [];
   results.forEach((r, p) => r && r.checks.forEach((c) => {
-    if (c.status === 'warn' && !seen.has(c.title)) { seen.add(c.title); warns.push({ ...c, p }); }
+    const key = byPosition ? `${p}|${c.title}` : c.title;
+    if (c.status === 'warn' && !seen.has(key)) { seen.add(key); warns.push({ ...c, p }); }
   }));
-  warns.sort((a, b) => a.priority - b.priority || a.p - b.p);
+  warns.sort(byPosition
+    ? (a, b) => a.p - b.p || a.priority - b.priority
+    : (a, b) => a.priority - b.priority || a.p - b.p);
   const goodCount = results.reduce((s, r) => s + (r ? r.checks.filter((c) => c.status === 'good').length : 0), 0);
-  return { top: warns.slice(0, n), warnCount: warns.length, goodCount };
+  return { top: byPosition ? warns : warns.slice(0, n), warnCount: warns.length, goodCount };
 }
 
