@@ -54,14 +54,6 @@ All thresholds live in `CONFIG` in [`js/positions.js`](js/positions.js) if you w
 - Slow-motion (120/240 fps) clips give the most precise positions. Trim the clip to one swing if you can. Long clips are scanned quickly first to find the swing.
 - iPhone: if a `.mov` won't play in Chrome, open the app in Safari, or set Camera → Formats → *Most Compatible*.
 
-## Hosting on GitHub Pages
-
-It's a static site with no build step:
-
-1. Merge this branch into `main`.
-2. In the repo, go to **Settings → Pages → Build and deployment**, choose **Deploy from a branch**, and select `main` / `(root)`.
-3. After a minute the app is live at `https://lironson.github.io/golfswing/`.
-
 ## Running locally
 
 ES modules need a web server (opening `index.html` directly from disk won't work):
