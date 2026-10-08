@@ -181,10 +181,27 @@ select:focus { outline: none; border-bottom-color: var(--accent); }
 
 .summary .label { margin-bottom: 8px; }
 
+/* Dropdowns: checkpoints, photo tips, line legend. A full-width row with a thumb-sized
+   tap target and an orange +/− instead of the browser's triangle. */
+.drops { border-top: 1px solid var(--faint); }
+.drop { border-bottom: 1px solid var(--faint); }
+.drop > summary {
+  list-style: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 44px; cursor: pointer; user-select: none;
+}
+.drop > summary::-webkit-details-marker { display: none; }
+.drop > summary::after { content: "+"; font: 600 18px/1 var(--f-mono); color: var(--accent); flex: none; }
+.drop[open] > summary::after { content: "−"; }
+.drop > summary:hover { color: var(--accent); }
+.drop-count { margin-right: auto; margin-left: 6px; }
+.drop > ul { margin-bottom: 10px; }
+.drop-list li { padding: 7px 0; border-top: 1px solid var(--faint); font-size: 14px; }
+.checkpoints-drop { border-top: 1px solid var(--faint); }
+.drop .checkpoint-list li:last-child { border-bottom: 0; }
+
 /* Guide-line legend: each swatch is drawn on a black chip, as the lines appear on photos */
-.legend summary { cursor: pointer; width: max-content; }
-.legend summary:hover { color: var(--accent); }
-.legend ul { margin-top: 10px; border-top: 1px solid var(--faint); max-width: 720px; }
+.legend ul { border-top: 1px solid var(--faint); max-width: 720px; }
 .legend li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--faint); font-size: 14px; }
 .swatch { position: relative; width: 30px; height: 16px; background: #000; }
 .swatch::before {
@@ -316,12 +333,14 @@ fieldset legend { margin-bottom: 8px; padding: 0; }
   .p-rail::-webkit-scrollbar { display: none; }
   .p-rail a { flex: none; height: 44px; padding-inline: 10px; gap: 6px; font-size: 14px; }
   .sheet-head { padding-top: 24px; }
-  .plate { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "ref" "slot"; padding: 32px 0 40px; scroll-margin-top: 56px; }
+  .plate { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "ref" "slot"; padding: 26px 0 32px; row-gap: 14px; scroll-margin-top: 56px; }
   .plate-ref { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 16px; align-items: start; }
   .plate-ref > .label:first-child { grid-column: 1 / -1; }
-  .ref-media { grid-column: 1; grid-row: 2 / span 3; }
-  .plate-ref > :not(.label):not(.ref-media) { grid-column: 2; }
-  .plate-ref > .label:not(:first-child) { grid-column: 2; }
+  .ref-media { grid-column: 1; grid-row: 2; }
+  .row-summary { grid-column: 2; grid-row: 2; align-self: center; }
+  .checkpoints-drop { grid-column: 1 / -1; } /* open list uses the full width */
+  .slot-drop { min-height: 84px; padding: 14px 16px; gap: 2px; }
+  .slot-drop .dz-title { font-size: 18px; }
   .setup-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) {

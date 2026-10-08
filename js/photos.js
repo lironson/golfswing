@@ -79,7 +79,7 @@ function buildRows() {
     $('.row-title', row).textContent = pos.name;
     $('.ref-media', row).appendChild(referenceElement(p, state.handedness, state.club));
     $('.dz-title', row).textContent = `Add your ${pos.id} photo`;
-    $('.dz-sub', row).textContent = `${pos.name}. Tap to choose, or drop an image. Optional.`;
+    $('.dz-sub', row).textContent = 'Tap to choose, or drop an image. Optional.';
 
     const input = $('input[type=file]', row);
     input.addEventListener('change', () => { if (input.files[0]) loadPhoto(p, input.files[0]); input.value = ''; });
@@ -108,6 +108,7 @@ function refreshClubText() {
     const t = clubText(p, state.club);
     $('.row-summary', row).textContent = t.summary;
     $('.ref-label', row).textContent = `Reference · ${CLUB_LABELS[state.club]}`;
+    $('.drop-count', row).textContent = `· ${t.checkpoints.length}`;
     const cp = $('.checkpoint-list', row);
     cp.innerHTML = '';
     t.checkpoints.forEach((c) => { const li = document.createElement('li'); li.textContent = c; cp.appendChild(li); });
