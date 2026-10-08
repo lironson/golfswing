@@ -1,6 +1,6 @@
 // UI wiring and app state.
 
-import { POSITIONS } from './positions.js';
+import { POSITIONS, CLUB_LABELS, clubText } from './positions.js';
 import { getLandmarker, processVideo, grabFrame } from './pose.js';
 import { prepareFrames, detectPositions, guessView, orientation } from './detect.js';
 import { analyzePosition, cardStatus, summarize } from './analyze.js';
@@ -22,6 +22,7 @@ const state = {
   width: 0,
   height: 0,
   handedness: 'right',
+  club: 'driver',
   viewChoice: 'auto',
   view: 'face',
   viewGuess: null,
@@ -118,6 +119,7 @@ $('#cancel-btn').addEventListener('click', () => { state.cancelled = true; });
 async function analyze() {
   hideError();
   state.handedness = document.querySelector('input[name="hand"]:checked').value;
+  state.club = document.querySelector('input[name="club"]:checked').value;
   state.viewChoice = document.querySelector('input[name="view"]:checked').value;
   const fps = Number($('#fps-select').value);
   state.cancelled = false;
@@ -185,12 +187,13 @@ function runDetection() {
   state.view = state.viewChoice === 'auto' ? state.viewGuess.view : state.viewChoice;
   $('#result-view').value = state.view;
   $('#result-hand').value = state.handedness;
+  $('#result-club').value = state.club;
   updateViewNote();
   analyzeAll();
 }
 
 function ctx() {
-  return { pts: state.pts, idx: state.idx, handedness: state.handedness, view: state.view, orient: state.orient };
+  return { pts: state.pts, idx: state.idx, handedness: state.handedness, view: state.view, club: state.club, orient: state.orient };
 }
 
 function analyzeAll() {
@@ -210,6 +213,12 @@ $('#result-view').addEventListener('change', async (e) => {
   state.view = e.target.value;
   state.viewChoice = state.view;
   updateViewNote();
+  analyzeAll();
+  await renderAll();
+});
+$('#result-club').addEventListener('change', async (e) => {
+  state.club = e.target.value;
+  updateCardClubText();
   analyzeAll();
   await renderAll();
 });
@@ -241,9 +250,6 @@ function buildCards() {
     const el = tpl.content.firstElementChild.cloneNode(true);
     el.id = `card-${pos.id}`;
     el.querySelector('.card-title').textContent = `${pos.id} · ${pos.name}`;
-    el.querySelector('.card-summary').textContent = pos.summary;
-    const cp = el.querySelector('.checkpoints ul');
-    pos.checkpoints.forEach((t) => { const li = document.createElement('li'); li.textContent = t; cp.appendChild(li); });
     const slider = el.querySelector('.frame-slider');
     el.querySelector('.prev').addEventListener('click', () => nudge(p, state.idx[p] - 1));
     el.querySelector('.next').addEventListener('click', () => nudge(p, state.idx[p] + 1));
@@ -255,8 +261,20 @@ function buildCards() {
   });
 }
 
+// Summary and checkpoints for the selected club on each card.
+function updateCardClubText() {
+  state.cards.forEach((el, p) => {
+    const t = clubText(p, state.club);
+    el.querySelector('.card-summary').textContent = t.summary;
+    const cp = el.querySelector('.checkpoints ul');
+    cp.innerHTML = '';
+    t.checkpoints.forEach((c) => { const li = document.createElement('li'); li.textContent = c; cp.appendChild(li); });
+  });
+}
+
 async function renderAll() {
   if (!state.cards.length) buildCards();
+  updateCardClubText();
   renderSummary();
   renderLegend();
   for (let p = 0; p < 10; p++) {
@@ -292,7 +310,7 @@ async function drawCard(p) {
   drawFrame(el.querySelector('canvas'), img, {
     srcW: state.width, srcH: state.height, ctx: ctx(), p, frameIndex: i,
     showOverlay: state.showOverlay,
-    title: `${POSITIONS[p].id} · ${POSITIONS[p].name}`,
+    title: `${POSITIONS[p].id} · ${POSITIONS[p].name} · ${CLUB_LABELS[state.club]}`,
     status: res.checks.length ? cardStatus(res.checks) : null,
   });
 }

@@ -16,7 +16,7 @@
   <!-- Versioned URLs make browsers fetch fresh files after each release instead of mixing
        cached old CSS/JS with new HTML. Bump ASSET VERSION (2026.10.08-1) everywhere in this file
        whenever css/ or js/ changes; tests/assets.test.js checks they all match. -->
-  <link rel="stylesheet" href="css/styles.css?v=2026.10.08-1">
+  <link rel="stylesheet" href="css/styles.css?v=2026.10.08-2">
 </head>
 <body>
   <header class="masthead wrap">
@@ -39,6 +39,13 @@
             <div class="spec">
               <span class="label">Positions</span>
               <span class="count" id="photo-count">0 / 10</span>
+            </div>
+            <div class="spec">
+              <span class="label" id="lbl-club">Club</span>
+              <div class="units" role="radiogroup" aria-labelledby="lbl-club">
+                <input type="radio" name="photo-club" id="pc-driver" value="driver" checked><label for="pc-driver">Driver</label>
+                <input type="radio" name="photo-club" id="pc-iron7" value="iron7"><label for="pc-iron7">7-Iron</label>
+              </div>
             </div>
             <div class="spec">
               <span class="label" id="lbl-hand">Golfer</span>
@@ -103,6 +110,13 @@
         </div>
         <div class="setup-controls">
           <fieldset>
+            <legend class="label">Club</legend>
+            <div class="units">
+              <input type="radio" name="club" id="club-driver" value="driver" checked><label for="club-driver">Driver</label>
+              <input type="radio" name="club" id="club-iron7" value="iron7"><label for="club-iron7">7-Iron</label>
+            </div>
+          </fieldset>
+          <fieldset>
             <legend class="label">Golfer</legend>
             <div class="units">
               <input type="radio" name="hand" id="hand-right" value="right" checked><label for="hand-right">Right</label>
@@ -154,6 +168,12 @@
       <div class="block summary">
         <div class="spec-row">
           <h2>Your swing</h2>
+          <label class="spec"><span class="label">Club</span>
+            <select id="result-club">
+              <option value="driver">Driver</option>
+              <option value="iron7">7-Iron</option>
+            </select>
+          </label>
           <label class="spec"><span class="label">View</span>
             <select id="result-view">
               <option value="face">Face-on</option>
@@ -227,7 +247,7 @@
         <h2 class="row-title"></h2>
       </div>
       <div class="plate-ref">
-        <span class="label">Reference</span>
+        <span class="label ref-label">Reference</span>
         <div class="ref-media"></div>
         <p class="row-summary"></p>
         <span class="label">Checkpoints</span>
@@ -259,19 +279,19 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/analyze.js": "./js/analyze.js?v=2026.10.08-1",
-      "./js/detect.js": "./js/detect.js?v=2026.10.08-1",
-      "./js/export.js": "./js/export.js?v=2026.10.08-1",
-      "./js/geometry.js": "./js/geometry.js?v=2026.10.08-1",
-      "./js/overlay.js": "./js/overlay.js?v=2026.10.08-1",
-      "./js/photos.js": "./js/photos.js?v=2026.10.08-1",
-      "./js/pose.js": "./js/pose.js?v=2026.10.08-1",
-      "./js/positions.js": "./js/positions.js?v=2026.10.08-1",
-      "./js/reference.js": "./js/reference.js?v=2026.10.08-1",
-      "./js/ui.js": "./js/ui.js?v=2026.10.08-1"
+      "./js/analyze.js": "./js/analyze.js?v=2026.10.08-2",
+      "./js/detect.js": "./js/detect.js?v=2026.10.08-2",
+      "./js/export.js": "./js/export.js?v=2026.10.08-2",
+      "./js/geometry.js": "./js/geometry.js?v=2026.10.08-2",
+      "./js/overlay.js": "./js/overlay.js?v=2026.10.08-2",
+      "./js/photos.js": "./js/photos.js?v=2026.10.08-2",
+      "./js/pose.js": "./js/pose.js?v=2026.10.08-2",
+      "./js/positions.js": "./js/positions.js?v=2026.10.08-2",
+      "./js/reference.js": "./js/reference.js?v=2026.10.08-2",
+      "./js/ui.js": "./js/ui.js?v=2026.10.08-2"
     }
   }
   </script>
-  <script type="module" src="js/app.js?v=2026.10.08-1"></script>
+  <script type="module" src="js/app.js?v=2026.10.08-2"></script>
 </body>
 </html>
