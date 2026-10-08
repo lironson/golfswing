@@ -137,3 +137,18 @@ test('summarize byPosition lists every warning in P order', async () => {
   assert.equal(d.warnCount, 4); // de-duplicated by title
   assert.deepEqual(d.top.map((c) => c.priority), [1, 1, 2]);
 });
+
+test('reference figures render for every position, club and camera view', async () => {
+  const { referenceSVG } = await import('../js/reference.js');
+  for (const club of ['driver', 'iron7']) {
+    for (let p = 0; p < 10; p++) {
+      const face = referenceSVG(p, 'right', club, 'face');
+      const dtl = referenceSVG(p, 'right', club, 'dtl');
+      const lefty = referenceSVG(p, 'left', club, 'dtl');
+      for (const svg of [face, dtl, lefty]) assert.ok(!/NaN|undefined/.test(svg), `P${p + 1} ${club}`);
+      assert.notEqual(face, dtl, `P${p + 1} ${club}: down-the-line differs from face-on`);
+      assert.match(dtl, /down-the-line/);
+      assert.match(dtl, /ref-butt/); // butt line on every DTL figure
+    }
+  }
+});

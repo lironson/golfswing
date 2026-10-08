@@ -44,6 +44,7 @@ Use the **Club** toggle (Driver | 7-Iron) at the top of the page. It changes thr
 
 - **Notes:** each position's summary and checkpoints are written separately for each club. The driver is swept up off a tee from a wide, tilted setup with the ball just inside the lead heel. The 7-iron is struck down (ball, then turf) from a centred setup with a near-neutral spine and the hands ahead.
 - **Reference figures:** the driver figure has a wider stance, the ball forward on a tee and more spine tilt. The 7-iron figure has the ball centred, a near-neutral spine and forward shaft lean at impact.
+- **Camera view:** the reference figures also follow the Face-on / Down-the-line toggle. The down-the-line figures show spine bend (driver about 32°, 7-iron about 40°), the ball farther from the feet with the driver, the shaft on the ball-to-hands plane at P3, P5 and P9, and a dashed butt line the hips should stay on through impact.
 - **Feedback:** some rules use club-specific ranges. For example, shoulder tilt at address (more for driver, nearly level for the 7-iron), hands at impact (the 7-iron must lead with the hands; the driver shaft can be near vertical) and spine tilt at impact.
 
 ## Feedback checks
@@ -78,7 +79,7 @@ npm test
 
 ## Releasing changes
 
-`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.08-3`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
+`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.08-4`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
 
 ## Project layout
 
