@@ -1,10 +1,10 @@
 # ⛳ Golf Swing P-Positions
 
-A browser-only golf swing analyzer. Add photos of whichever P-positions you have (say P1, P4 and P8). All 10 positions are listed on one page, each with a reference figure and its checkpoints, and the rest can stay blank. Every photo gets guide lines and coaching tips.
+A browser-only golf swing analyzer with two modes, switched with the Video | Photos toggle (set `VIDEO_ENABLED = false` in [`js/app.js`](js/app.js) to offer photos only).
 
-> **Video mode is turned off for now.** The code is still here. To bring back the 🎥 Video | 🖼 Photos toggle, set `VIDEO_ENABLED = true` at the top of the mode section in [`js/app.js`](js/app.js). The sections below on video describe how it works when it's on.
+**Photos:** add photos of whichever P-positions you have (say P1, P4 and P8). All 10 positions are listed on one page, each with a reference figure and its checkpoints, and the rest can stay blank. Every photo gets guide lines and coaching tips.
 
-In video mode the app:In video mode the app:
+**Video:** add a clip of one swing. Up to 5 seconds is analysed; for a longer clip you slide a 5-second window over the swing. The app:
 
 1. **Finds the 10 P-positions** (Address → Finish) and pulls each one out as a still image.
 2. **Draws guide lines** over each still: spine angle, butt line, shoulder plane, head box, sway lines, and more.
@@ -19,15 +19,23 @@ Everything runs locally in your browser with [MediaPipe Pose](https://ai.google.
 | P1 | Address | Still hands before the takeaway starts |
 | P2 | Takeaway, shaft parallel | Hands reach about hip height on the way back |
 | P3 | Lead arm parallel (backswing) | Hands reach lead-shoulder height |
-| P4 | Top | Highest hand position before the downswing |
+| P4 | Top | Highest hand position before impact |
 | P5 | Lead arm parallel (downswing) | Hands drop back to lead-shoulder height |
 | P6 | Shaft parallel (downswing) | Hands back at about hip height |
-| P7 | Impact | Lowest hand position in the downswing |
+| P7 | Impact | Lowest point of the fast-moving hands after the backswing |
 | P8 | Shaft parallel (follow-through) | Hands back up to about hip height |
 | P9 | Trail arm parallel (follow-through) | Hands reach trail-shoulder height |
 | P10 | Finish | Hands settle after the swing |
 
 The positions are worked out from body pose only, because the club isn't tracked. If a frame is a little off, use the **◀ ▶ buttons or the slider** on each card to fine-tune it. The feedback updates instantly.
+
+### How video detection works
+
+1. **Every frame is read in one pass.** The video plays muted and pauses on each new frame while MediaPipe finds the body, so no frame is skipped and nothing has to seek (seeking re-decodes from the last keyframe and was the slow part before).
+2. **The hand track is cleaned.** Wrist and elbow points with low visibility, and one- or two-frame jumps (motion blur, wrists mixed up), are dropped and filled in from the frames either side. Repeated frames are ignored.
+3. **The swing is found** as the longest burst of hand movement, so a waggle before or walking off after doesn't confuse it.
+4. **Anchors first:** impact (P7) is the lowest point of the fast-moving hands after the backswing, the top (P4) is the highest hand position before that, and address (P1) is where the hands were last still before the takeaway. The other positions are found from hand height between the anchors.
+5. **Sanity check:** if the downswing or the backswing:downswing tempo looks implausible, or a position had to be estimated, its card says *best guess, check this frame*.
 
 ## Photos mode
 
@@ -62,7 +70,8 @@ All thresholds live in `CONFIG` in [`js/positions.js`](js/positions.js) if you w
 - Use a tripod at about hand height. Keep the **whole body (and club) in frame** for the entire swing.
 - **Face-on:** camera square to your chest. **Down-the-line:** camera behind your hands, pointing at the target.
 - Good light, a plain background and fitted clothes all help.
-- Slow-motion (120/240 fps) clips give the most precise positions. Trim the clip to one swing if you can. Long clips are scanned quickly first to find the swing.
+- One swing per clip, starting a moment before address and ending after the finish. Only 5 seconds is analysed.
+- Film at 60 fps if you can: the downswing lasts about a quarter of a second, so more frames means more precise positions. Slow-motion clips are stretched in time, so 5 seconds of one may not cover the whole swing.
 - iPhone: if a `.mov` won't play in Chrome, open the app in Safari, or set Camera → Formats → *Most Compatible*.
 
 ## Running locally
@@ -73,7 +82,7 @@ ES modules need a web server (opening `index.html` directly from disk won't work
 python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
-Unit tests (Node 18+) run the detection and feedback logic on synthetic swings:
+Unit tests (Node 18+) run the detection and feedback logic on synthetic swings, including noisy ones (jitter, lost and glitching wrists, repeated frames), and on any real clips in [`tests/fixtures/`](tests/fixtures/README.md):
 
 ```bash
 npm test
@@ -81,7 +90,7 @@ npm test
 
 ## Releasing changes
 
-`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.08-5`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
+`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.09-1`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
 
 ## Project layout
 
@@ -89,8 +98,8 @@ npm test
 index.html          UI
 css/styles.css      Styles (light/dark mode, mobile friendly)
 js/app.js           UI wiring and state
-js/pose.js          MediaPipe loading and frame-by-frame video sampling
-js/detect.js        Signal smoothing, P1–P10 detection, camera-view guess
+js/pose.js          MediaPipe loading and frame-by-frame video capture
+js/detect.js        Hand-track cleaning, P1–P10 detection, camera-view guess
 js/analyze.js       Rule-based feedback per position
 js/overlay.js       Skeleton and guide-line drawing
 js/photos.js        Photos mode (fill-in-the-blanks P1–P10 page)
@@ -101,6 +110,7 @@ assets/fonts/       Self-hosted Barlow, Barlow Condensed and IBM Plex Mono (SIL 
 js/positions.js     P-position descriptions and tunable thresholds
 js/geometry.js      Maths helpers
 tests/              Node unit tests with a synthetic swing generator
+tests/fixtures/     Real swing clips, their landmarks and true P-times (see its README)
 ```
 
 ## Limitations

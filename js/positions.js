@@ -257,7 +257,7 @@ export function clubText(p, club = 'driver') {
 // All detection/analysis thresholds in one place. Distances are in units of
 // torso length (mid-hip to mid-shoulder at address) unless stated otherwise.
 export const CONFIG = {
-  smoothingWindow: 5, // frames, centred moving average on landmarks
+  smoothingSeconds: 0.06, // centred moving average on landmarks (3 frames at 30 fps, 5 at 60 fps)
   minVisibility: 0.3,
 
   detect: {
@@ -267,6 +267,17 @@ export const CONFIG = {
     stillSpeedFraction: 0.12,
     // Shoulder width / torso length at address below which we guess down-the-line.
     dtlShoulderRatio: 0.42,
+    // Wrist and elbow samples below this MediaPipe visibility are treated as missing and filled in.
+    handVisibility: 0.5,
+    // A hand sample this far (torso lengths) from the median of its neighbours is a glitch.
+    maxJumpTorso: 0.6,
+    // The swing is the biggest run of frames with hand speed above this fraction of the 95th-percentile speed.
+    motionSpeedFraction: 0.15,
+    // Pauses shorter than this (seconds, e.g. at the top) don't split the swing.
+    mergeGapSeconds: 0.35,
+    // Sanity checks: top-to-impact time (seconds) and backswing:downswing time ratio.
+    downswingSeconds: [0.15, 0.6],
+    tempoRatio: [1.5, 6],
   },
 
   dtl: {

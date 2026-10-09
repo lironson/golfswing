@@ -1,7 +1,7 @@
 // UI wiring and app state.
 
 import { POSITIONS, CLUB_LABELS, clubText } from './positions.js';
-import { getLandmarker, processVideo, grabFrame } from './pose.js';
+import { getLandmarker, processVideo, captureFrames, canCaptureFrames, grabFrame } from './pose.js';
 import { prepareFrames, detectPositions, guessView, orientation } from './detect.js';
 import { analyzePosition, cardStatus, summarize } from './analyze.js';
 import { drawFrame } from './overlay.js';
@@ -27,6 +27,7 @@ const state = {
   view: 'face',
   viewGuess: null,
   autoIdx: null,
+  confidence: null,
   idx: null,
   orient: null,
   results: [],
@@ -38,8 +39,11 @@ const state = {
 
 // ---------- Mode: video or photos ----------
 
-// Video mode is switched off for now; set to true to bring back the Video | Photos toggle.
-const VIDEO_ENABLED = false;
+// Set to false to hide the Video | Photos toggle and offer photos only.
+const VIDEO_ENABLED = true;
+
+// Longest stretch of video analysed. A swing takes under 2 s, and a short window keeps analysis quick.
+const MAX_CLIP_SECONDS = 5;
 
 const mode = () => document.querySelector('input[name="mode"]:checked').value;
 
@@ -81,8 +85,7 @@ function loadFile(file) {
   state.frameCache.clear();
   video.src = state.url;
   video.addEventListener('loadedmetadata', () => {
-    state.range = { start: 0, end: video.duration };
-    updateRangeLabel();
+    setupWindow();
     show('setup');
   }, { once: true });
   video.addEventListener('error', () => {
@@ -93,18 +96,32 @@ function loadFile(file) {
 
 // ---------- Step 2: setup ----------
 
-$('#set-start').addEventListener('click', () => {
-  state.range.start = Math.min(video.currentTime, state.range.end - 0.2);
+// Clips up to MAX_CLIP_SECONDS are analysed whole; for longer ones the user slides a window over the swing.
+const windowStart = $('#window-start');
+
+function setupWindow() {
+  const long = video.duration > MAX_CLIP_SECONDS;
+  $('#window-picker').hidden = !long;
+  $('#window-hint').textContent = long
+    ? `Only ${MAX_CLIP_SECONDS} seconds is analysed. Slide the window so it covers your swing, from address to the finish.`
+    : 'The whole clip is analysed.';
+  windowStart.max = long ? (video.duration - MAX_CLIP_SECONDS).toFixed(2) : 0;
+  setWindow(0);
+}
+
+function setWindow(start) {
+  start = clamp(start, 0, Math.max(0, video.duration - MAX_CLIP_SECONDS));
+  state.range = { start, end: Math.min(video.duration, start + MAX_CLIP_SECONDS) };
+  windowStart.value = start;
   updateRangeLabel();
+}
+
+windowStart.addEventListener('input', () => {
+  setWindow(Number(windowStart.value));
+  video.pause();
+  video.currentTime = state.range.start; // preview where the window starts
 });
-$('#set-end').addEventListener('click', () => {
-  state.range.end = Math.max(video.currentTime, state.range.start + 0.2);
-  updateRangeLabel();
-});
-$('#reset-range').addEventListener('click', () => {
-  state.range = { start: 0, end: video.duration };
-  updateRangeLabel();
-});
+$('#set-start').addEventListener('click', () => setWindow(video.currentTime));
 $('#change-video').addEventListener('click', () => { fileInput.value = ''; show('upload'); });
 $('#new-video').addEventListener('click', () => { fileInput.value = ''; show('upload'); window.scrollTo(0, 0); });
 
@@ -121,7 +138,6 @@ async function analyze() {
   state.handedness = document.querySelector('input[name="hand"]:checked').value;
   state.club = document.querySelector('input[name="club"]:checked').value;
   state.viewChoice = document.querySelector('input[name="view"]:checked').value;
-  const fps = Number($('#fps-select').value);
   state.cancelled = false;
   video.pause();
   show('progress');
@@ -129,31 +145,16 @@ async function analyze() {
 
   try {
     await getLandmarker('VIDEO');
-    let { start, end } = state.range;
+    const { start, end } = state.range;
     const isCancelled = () => state.cancelled;
-
-    // Long clip: quick coarse scan to find the swing, then analyse just that window in detail.
-    if (end - start > 6) {
-      setProgress(0, 'Scanning the clip for your swing…');
-      const coarse = await processVideo(video, {
-        start, end, fps: 8, isCancelled,
-        onProgress: (f) => setProgress(f * 0.3, 'Scanning the clip for your swing…'),
-      });
-      try {
-        const pts = prepareFrames(coarse, video.videoWidth, video.videoHeight, 1);
-        const { indices } = detectPositions(pts, coarse.map((f) => f.t), state.handedness);
-        start = Math.max(start, coarse[indices[0]].t - 1.0);
-        end = Math.min(end, coarse[indices[9]].t + 1.0);
-      } catch (e) {
-        console.warn('Coarse scan failed, analysing the full range.', e);
-      }
+    const onProgress = (f) => setProgress(f, `Detecting body positions… ${Math.round(f * 100)}%`);
+    setProgress(0, 'Detecting body positions…');
+    const frames = canCaptureFrames()
+      ? await captureFrames(video, { start, end, isCancelled, onProgress })
+      : await processVideo(video, { start, end, fps: 30, isCancelled, onProgress });
+    if (frames.length < 10) {
+      throw new Error(`Only ${frames.length} frames could be read from this video. Try an MP4 (H.264), or open the app in another browser.`);
     }
-
-    const base = state.range.end - state.range.start > 6 ? 0.3 : 0;
-    const frames = await processVideo(video, {
-      start, end, fps, isCancelled,
-      onProgress: (f) => setProgress(base + f * (1 - base), `Detecting body positions… ${Math.round(f * 100)}%`),
-    });
     const found = frames.filter((f) => f.lm).length;
     if (found < frames.length * 0.4) {
       throw new Error(`A person was only detected in ${found} of ${frames.length} frames. Make sure your whole body is in view and well lit.`);
@@ -182,6 +183,7 @@ function runDetection() {
   state.pts = prepareFrames(state.raw, state.width, state.height);
   const det = detectPositions(state.pts, state.times, state.handedness);
   state.autoIdx = det.indices.slice();
+  state.confidence = det.confidence;
   state.idx = det.indices.slice();
   state.viewGuess = guessView(state.pts, state.idx[0]);
   state.view = state.viewChoice === 'auto' ? state.viewGuess.view : state.viewChoice;
@@ -204,9 +206,11 @@ function analyzeAll() {
 function updateViewNote() {
   const name = (v) => (v === 'dtl' ? 'down-the-line' : 'face-on');
   const g = state.viewGuess;
-  $('#view-note').textContent = state.viewChoice === 'auto'
+  const unsure = state.confidence.filter((ok) => !ok).length;
+  $('#view-note').textContent = (state.viewChoice === 'auto'
     ? `Camera angle auto-detected as ${name(g.view)}. Change it above if that's wrong.`
-    : `Analysed as ${name(state.view)} (auto-detect suggested ${name(g.view)}).`;
+    : `Analysed as ${name(state.view)} (auto-detect suggested ${name(g.view)}).`)
+    + (unsure ? ` ${unsure} of the 10 positions are best guesses: check those frames and nudge them with ◀ ▶ if needed.` : '');
 }
 
 $('#result-view').addEventListener('change', async (e) => {
@@ -236,7 +240,7 @@ $('#overlay-toggle').addEventListener('change', async (e) => {
 
 async function frameImage(i) {
   if (state.frameCache.has(i)) return state.frameCache.get(i);
-  const img = await grabFrame(video, state.times[i]);
+  const img = await grabFrame(video, state.times[i] + 0.001); // just inside the frame, not on its edge
   state.frameCache.set(i, img);
   if (state.frameCache.size > 60) state.frameCache.delete(state.frameCache.keys().next().value);
   return img;
@@ -293,8 +297,11 @@ function updateCardText(p) {
   slider.max = Math.min(state.times.length - 1, state.autoIdx[p] + span);
   slider.value = i;
   const off = i - state.autoIdx[p];
-  el.querySelector('.frame-info').textContent =
-    `${state.times[i].toFixed(2)}s · frame ${i + 1}/${state.times.length}${off ? ` · ${off > 0 ? '+' : ''}${off} from auto` : ' · auto-detected'}`;
+  const unsure = !off && !state.confidence[p];
+  const info = el.querySelector('.frame-info');
+  info.classList.toggle('unsure', unsure);
+  info.textContent = `${state.times[i].toFixed(2)}s · frame ${i + 1}/${state.times.length}${
+    off ? ` · ${off > 0 ? '+' : ''}${off} from auto` : unsure ? ' · best guess, check this frame' : ' · auto-detected'}`;
 
   renderChecks(el.querySelector('.checks'), res.checks.length ? res.checks
     : [{ status: 'info', title: 'Reference position', detail: 'Compare your frame with the ideal checkpoints below.' }]);

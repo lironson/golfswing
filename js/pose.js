@@ -124,3 +124,87 @@ export async function processVideo(video, { start = 0, end = video.duration, fps
   }
   return frames;
 }
+
+/** True when the browser can hand over each decoded frame during playback (all current browsers). */
+export const canCaptureFrames = () =>
+  typeof HTMLVideoElement !== 'undefined' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+
+/**
+ * Run pose detection on every frame between start and end (seconds) in one pass.
+ * Instead of seeking to each sample (slow: every seek decodes from the last keyframe),
+ * the video plays muted and pauses on each new frame while it is analysed, so no frame
+ * is skipped however long detection takes.
+ * @returns {Promise<Array<{t:number, lm:Array|null}>>} t is the frame's own media time.
+ */
+export async function captureFrames(video, { start = 0, end = video.duration, maxSide = 640, onProgress, isCancelled } = {}) {
+  const landmarker = await getLandmarker('VIDEO');
+  const scale = Math.min(1, maxSide / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+
+  video.pause();
+  video.muted = true;
+  video.playbackRate = 1; // faster playback skips frames between pauses
+  await seek(video, start);
+  const base = lastTimestamp + 1000; // detectForVideo timestamps must keep increasing across runs
+  const frames = [];
+  let lastT = -Infinity;
+
+  const analyse = (t) => {
+    lastT = t;
+    g.drawImage(video, 0, 0, canvas.width, canvas.height);
+    lastTimestamp = base + (t - start) * 1000;
+    const res = landmarker.detectForVideo(canvas, lastTimestamp);
+    frames.push({
+      t,
+      lm: res.landmarks && res.landmarks[0]
+        ? res.landmarks[0].map((p) => ({ x: p.x, y: p.y, visibility: p.visibility ?? 1 }))
+        : null,
+    });
+    if (onProgress) onProgress(Math.min(1, (t - start) / Math.max(1e-3, end - start)));
+  };
+
+  return new Promise((resolve, reject) => {
+    let handle = 0, watchdog = 0, done = false;
+    const finish = (err) => {
+      if (done) return;
+      done = true;
+      clearTimeout(watchdog);
+      video.cancelVideoFrameCallback(handle);
+      video.removeEventListener('ended', onEnded);
+      video.pause();
+      if (err) reject(err);
+      else resolve(frames);
+    };
+    const onEnded = () => finish();
+    const armWatchdog = () => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(() => finish(new Error('Video playback stalled. Keep this tab open in front while the swing is analysed.')), 5000);
+    };
+    const resume = () => {
+      armWatchdog();
+      handle = video.requestVideoFrameCallback(onFrame);
+      video.play().catch((err) => finish(err));
+    };
+
+    function onFrame(_now, meta) {
+      if (done) return;
+      video.pause();
+      if (isCancelled && isCancelled()) { finish(new Error('cancelled')); return; }
+      const t = meta.mediaTime;
+      if (t > end + 1e-3) { finish(); return; }
+      try {
+        if (t > lastT + 1e-4) analyse(t);
+      } catch (err) { finish(err); return; }
+      resume();
+    }
+
+    video.addEventListener('ended', onEnded);
+    try {
+      analyse(video.currentTime); // the frame already on screen won't trigger a callback
+    } catch (err) { finish(err); return; }
+    resume();
+  });
+}

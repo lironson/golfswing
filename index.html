@@ -16,12 +16,12 @@
   <!-- Versioned URLs make browsers fetch fresh files after each release instead of mixing
        cached old CSS/JS with new HTML. Bump ASSET VERSION (2026.10.08-1) everywhere in this file
        whenever css/ or js/ changes; tests/assets.test.js checks they all match. -->
-  <link rel="stylesheet" href="css/styles.css?v=2026.10.08-5">
+  <link rel="stylesheet" href="css/styles.css?v=2026.10.09-1">
 </head>
 <body>
   <header class="masthead wrap">
     <h1>Golf Swing P-Positions<i>.</i></h1>
-    <p class="lede">Add a photo of any position you have and leave the rest blank. Each photo gets guide lines and coaching notes. Nothing leaves your device.</p>
+    <p class="lede">Add a swing video, or a photo of any position you have. Each position gets guide lines and coaching notes. Nothing leaves your device.</p>
     <div id="mode-toggle" class="units mode-toggle" role="radiogroup" aria-label="Input type" hidden>
       <input type="radio" name="mode" id="mode-video" value="video"><label for="mode-video">Video</label>
       <input type="radio" name="mode" id="mode-photos" value="photos" checked><label for="mode-photos">Photos</label>
@@ -93,12 +93,12 @@
       </div>
     </section>
 
-    <!-- Video mode (switched off for now; see VIDEO_ENABLED in js/app.js) -->
+    <!-- Video mode -->
     <section id="upload-section" class="block" hidden>
       <label id="dropzone" class="dropzone" for="file-input">
         <input id="file-input" type="file" accept="video/*" hidden>
         <span class="dz-title">Choose or drop a swing video</span>
-        <span class="dz-sub">MP4, MOV or WebM, filmed face-on or down-the-line</span>
+        <span class="dz-sub">MP4, MOV or WebM, filmed face-on or down-the-line. Up to 5 seconds is analysed.</span>
       </label>
       <details class="tips">
         <summary>How to film for the best results</summary>
@@ -107,7 +107,8 @@
           <li><strong>Down-the-line:</strong> camera behind your hands, pointing at the target, about hand height.</li>
           <li>Use a tripod, and keep your <strong>whole body in frame</strong> for the entire swing, with the club fully visible at the top.</li>
           <li>Film in good light against a plain background, in fitted clothing.</li>
-          <li>Slow-motion (120/240 fps) gives the most accurate positions. Trim the clip to one swing if you can.</li>
+          <li>One swing per clip: start a moment before address and stop after the finish. Only 5 seconds is analysed; for a longer clip you pick which 5 seconds.</li>
+          <li>Film at 60 fps if your phone allows it. The downswing lasts about a quarter of a second, so more frames means more precise positions.</li>
         </ul>
       </details>
     </section>
@@ -141,21 +142,14 @@
             </div>
           </fieldset>
           <fieldset>
-            <legend class="label">Analyse range <span class="mono" id="range-label"></span></legend>
-            <div class="row">
-              <button type="button" class="text-btn" id="set-start">Start = current</button>
-              <button type="button" class="text-btn" id="set-end">End = current</button>
-              <button type="button" class="text-btn" id="reset-range">Whole clip</button>
+            <legend class="label">Swing window <span class="mono" id="range-label"></span></legend>
+            <div id="window-picker" hidden>
+              <input type="range" id="window-start" class="window-slider" min="0" step="0.05" value="0" aria-label="Start of the 5-second window">
+              <div class="row">
+                <button type="button" class="text-btn" id="set-start">Start window here</button>
+              </div>
             </div>
-            <p class="hint">Optional: scrub the video and trim to a single swing. Long clips are scanned quickly first to find the swing.</p>
-          </fieldset>
-          <fieldset>
-            <legend class="label">Accuracy</legend>
-            <select id="fps-select">
-              <option value="30">Fast (30 samples/s)</option>
-              <option value="60" selected>Balanced (60 samples/s)</option>
-              <option value="120">Precise (120 samples/s, slow-mo clips)</option>
-            </select>
+            <p class="hint" id="window-hint"></p>
           </fieldset>
           <div class="row">
             <button type="button" class="btn" id="analyze-btn">Analyse swing</button>
@@ -290,19 +284,19 @@
   <script type="importmap">
   {
     "imports": {
-      "./js/analyze.js": "./js/analyze.js?v=2026.10.08-5",
-      "./js/detect.js": "./js/detect.js?v=2026.10.08-5",
-      "./js/export.js": "./js/export.js?v=2026.10.08-5",
-      "./js/geometry.js": "./js/geometry.js?v=2026.10.08-5",
-      "./js/overlay.js": "./js/overlay.js?v=2026.10.08-5",
-      "./js/photos.js": "./js/photos.js?v=2026.10.08-5",
-      "./js/pose.js": "./js/pose.js?v=2026.10.08-5",
-      "./js/positions.js": "./js/positions.js?v=2026.10.08-5",
-      "./js/reference.js": "./js/reference.js?v=2026.10.08-5",
-      "./js/ui.js": "./js/ui.js?v=2026.10.08-5"
+      "./js/analyze.js": "./js/analyze.js?v=2026.10.09-1",
+      "./js/detect.js": "./js/detect.js?v=2026.10.09-1",
+      "./js/export.js": "./js/export.js?v=2026.10.09-1",
+      "./js/geometry.js": "./js/geometry.js?v=2026.10.09-1",
+      "./js/overlay.js": "./js/overlay.js?v=2026.10.09-1",
+      "./js/photos.js": "./js/photos.js?v=2026.10.09-1",
+      "./js/pose.js": "./js/pose.js?v=2026.10.09-1",
+      "./js/positions.js": "./js/positions.js?v=2026.10.09-1",
+      "./js/reference.js": "./js/reference.js?v=2026.10.09-1",
+      "./js/ui.js": "./js/ui.js?v=2026.10.09-1"
     }
   }
   </script>
-  <script type="module" src="js/app.js?v=2026.10.08-5"></script>
+  <script type="module" src="js/app.js?v=2026.10.09-1"></script>
 </body>
 </html>

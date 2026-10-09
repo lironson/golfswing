@@ -58,3 +58,10 @@ export function argMin(arr, from = 0, to = arr.length - 1) {
 }
 
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// Value at fraction q (0–1) of the sorted array, e.g. 0.95 for the 95th percentile.
+export function percentile(arr, q) {
+  if (!arr.length) return 0;
+  const s = arr.slice().sort((a, b) => a - b);
+  return s[clamp(Math.round(q * (s.length - 1)), 0, s.length - 1)];
+}

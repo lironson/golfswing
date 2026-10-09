@@ -87,3 +87,49 @@ export function makeSwing(o = {}) {
   }
   return { frames, width: W, height: H };
 }
+
+// Small seeded PRNG so noisy swings are the same on every run.
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const WRISTS = [15, 16];
+
+/**
+ * Make a clean synthetic swing look like real MediaPipe output.
+ * @param {Array} frames from makeSwing
+ * @param {object} o
+ *  jitter: landmark noise (std dev, pixels at 1000 px); dropout: chance per frame that both wrists are lost
+ *  (garbage position, low visibility); spikes: times (s) where the wrists jump to a wrong spot with
+ *  high confidence for spikeFrames frames; lost: [from, to] seconds where the wrists are lost (motion blur); dupes: chance a frame repeats the previous image (imprecise seeking); padStart: seconds
+ *  of extra still address before the swing.
+ */
+export function addNoise(frames, o = {}) {
+  const { seed = 1, jitter = 0, dropout = 0, spikes = [], spikeFrames = 2, lost = null, dupes = 0, padStart = 0 } = o;
+  const rand = rng(seed);
+  const gauss = () => Math.sqrt(-2 * Math.log(rand() || 1e-9)) * Math.cos(2 * Math.PI * rand());
+  const dt = frames.length > 1 ? frames[1].t - frames[0].t : 1 / 60;
+  const pad = [];
+  for (let t = 0; t < padStart - 1e-9; t += dt) pad.push({ t, lm: frames[0].lm });
+  const out = [...pad, ...frames.map((f) => ({ t: f.t + pad.length * dt, lm: f.lm }))];
+  let prev = null;
+  return out.map((f) => {
+    if (prev && rand() < dupes) return { t: +f.t.toFixed(4), lm: prev };
+    const lm = f.lm.map((p) => ({ x: p.x + (gauss() * jitter) / W, y: p.y + (gauss() * jitter) / H, visibility: p.visibility }));
+    if (rand() < dropout || (lost && f.t >= lost[0] + padStart && f.t <= lost[1] + padStart)) {
+      for (const k of WRISTS) lm[k] = { x: rand(), y: rand(), visibility: 0.1 + 0.2 * rand() };
+    }
+    if (spikes.some((s) => f.t - (s + padStart) > -dt / 2 && f.t - (s + padStart) < (spikeFrames - 0.5) * dt)) {
+      for (const k of WRISTS) lm[k] = { x: lm[k].x + 0.05, y: lm[k].y - 0.35, visibility: 0.9 };
+    }
+    prev = lm;
+    return { t: +f.t.toFixed(4), lm };
+  });
+}
