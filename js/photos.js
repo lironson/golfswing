@@ -15,15 +15,24 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const MAX_SIDE = 1600;
 const viewName = (v) => (v === 'dtl' ? 'down-the-line' : 'face-on');
 
-// The club choice is remembered per browser; storage can be blocked, so it's best-effort.
-function savedClub() {
-  try { return localStorage.getItem('club') === 'iron7' ? 'iron7' : 'driver'; } catch { return 'driver'; }
+// Club, golfer and camera view are remembered per browser. First visit: 7-iron, down-the-line.
+// Storage can be blocked (private mode, settings), so reading and writing are best-effort.
+function saved(key, allowed, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return allowed.includes(v) ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function remember(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* storage blocked: choice lasts this visit */ }
 }
 
 const state = {
-  handedness: 'right',
-  view: 'face',
-  club: savedClub(),
+  handedness: saved('hand', ['right', 'left'], 'right'),
+  view: saved('view', ['face', 'dtl'], 'dtl'),
+  club: saved('club', ['driver', 'iron7'], 'iron7'),
   showOverlay: true,
   // Per position: null (empty) or { img, pts, error, busy, result, ctx }
   slots: Array(10).fill(null),
@@ -38,18 +47,21 @@ export function initPhotos() {
   initialised = true;
   buildRows();
   buildRail();
-  const clubRadio = $(`input[name="photo-club"][value="${state.club}"]`);
-  if (clubRadio) clubRadio.checked = true;
+  for (const [name, value] of [['photo-club', state.club], ['photo-hand', state.handedness], ['photo-view', state.view]]) {
+    const radio = $(`input[name="${name}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+  }
   document.querySelectorAll('input[name="photo-club"]').forEach((r) => r.addEventListener('change', () => {
-    state.club = r.value;
-    try { localStorage.setItem('club', state.club); } catch { /* storage blocked: choice lasts this visit */ }
+    state.club = r.value; remember('club', state.club);
     refreshClubText(); refreshReferences(); analyzeAll();
   }));
   document.querySelectorAll('input[name="photo-hand"]').forEach((r) => r.addEventListener('change', () => {
-    state.handedness = r.value; refreshReferences(); analyzeAll();
+    state.handedness = r.value; remember('hand', state.handedness);
+    refreshReferences(); analyzeAll();
   }));
   document.querySelectorAll('input[name="photo-view"]').forEach((r) => r.addEventListener('change', () => {
-    state.view = r.value; suggestView(); updateLegend(); refreshClubText(); refreshReferences(); analyzeAll();
+    state.view = r.value; remember('view', state.view);
+    suggestView(); updateLegend(); refreshClubText(); refreshReferences(); analyzeAll();
   }));
   $('#photo-overlay').addEventListener('change', (e) => { state.showOverlay = e.target.checked; state.slots.forEach((_, p) => renderRow(p)); });
   $('#photo-clear').addEventListener('click', () => {
@@ -248,6 +260,7 @@ function suggestView() {
   btn.textContent = `Switch to ${viewName(view)} →`;
   btn.addEventListener('click', () => {
     state.view = view;
+    remember('view', view);
     $(`input[name="photo-view"][value="${view}"]`).checked = true;
     note.hidden = true;
     updateLegend();
