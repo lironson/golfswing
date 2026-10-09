@@ -22,7 +22,7 @@ export function prepareFrames(raw, width, height, window = defaultWindow(raw)) {
   if (!valid.some(Boolean)) throw new Error('No person was detected in this video.');
 
   const torso = median(raw.filter((_, i) => valid[i]).map((f) => torsoLength(toPixels(f.lm, width, height)))) || 1;
-  const out = Array.from({ length: n }, () => new Array(N_LANDMARKS));
+  const tracks = [];
   for (let k = 0; k < N_LANDMARKS; k++) {
     const xs = new Array(n), ys = new Array(n), vs = new Array(n);
     const ok = valid.slice();
@@ -32,11 +32,25 @@ export function prepareFrames(raw, width, height, window = defaultWindow(raw)) {
       xs[i] = p.x * width; ys[i] = p.y * height; vs[i] = p.visibility ?? 1;
     }
     if (HAND_LANDMARKS.includes(k)) cleanHandTrack(xs, ys, vs, ok, torso);
+    tracks.push({ xs, ys, vs, ok });
+  }
+
+  // The wrists are together on the grip, so a hidden wrist (the lead one, down the line)
+  // is better placed on the visible one than filled in from frames far away.
+  const [a, b] = [tracks[LM.lWrist], tracks[LM.rWrist]];
+  for (let i = 0; i < n; i++) {
+    const [from, to] = a.ok[i] && !b.ok[i] ? [a, b] : b.ok[i] && !a.ok[i] ? [b, a] : [null, null];
+    if (!from) continue;
+    to.xs[i] = from.xs[i]; to.ys[i] = from.ys[i]; to.vs[i] = from.vs[i]; to.ok[i] = true;
+  }
+
+  const out = Array.from({ length: n }, () => new Array(N_LANDMARKS));
+  tracks.forEach(({ xs, ys, vs, ok }, k) => {
     if (!ok.some(Boolean)) ok.splice(0, n, ...valid); // never lose a landmark entirely
     fillGaps(xs, ok); fillGaps(ys, ok); fillGaps(vs, ok);
     const sx = smooth(xs, window), sy = smooth(ys, window);
     for (let i = 0; i < n; i++) out[i][k] = { x: sx[i], y: sy[i], v: ok[i] ? vs[i] : 0 };
-  }
+  });
   return out;
 }
 
@@ -224,7 +238,8 @@ export function detectPositions(pts, times, handedness = 'right') {
   let p5 = firstIndex(p4 + 1, p7 - 1, (i) => H[i] <= lead[i]);
   if (p5 < 0) { p5 = Math.round(p4 + 0.55 * (p7 - p4)); sure[4] = false; }
 
-  let p6 = firstIndex(p5 + 1, p7 - 1, (i) => H[i] <= Hp);
+  const Hp6 = H1 + cfg.downswingShaftParallelFraction * (H[p3] - H1);
+  let p6 = firstIndex(p5 + 1, p7 - 1, (i) => H[i] <= Hp6);
   if (p6 < 0) { p6 = Math.round((p5 + p7) / 2); sure[5] = false; }
 
   let p8 = firstIndex(p7 + 1, n - 1, (i) => H[i] >= Hp);

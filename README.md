@@ -90,7 +90,7 @@ npm test
 
 ## Releasing changes
 
-`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.09-1`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
+`index.html` loads the stylesheet and every script with a version tag (`?v=2026.10.09-2`), so browsers fetch fresh copies after a release instead of mixing cached old files with the new page. When you change anything in `css/` or `js/`, change that version string everywhere in `index.html` (find and replace). If you add a new file to `js/`, also add it to the import map there. `npm test` checks that every script is listed and all the versions match.
 
 ## Project layout
 

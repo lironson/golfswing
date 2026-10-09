@@ -263,6 +263,8 @@ export const CONFIG = {
   detect: {
     // Hand height fraction between address and lead-arm-parallel that marks "shaft parallel".
     shaftParallelFraction: 0.3,
+    // Same for P6: the wrists are still cocked in the downswing, so the shaft reaches parallel with the hands higher.
+    downswingShaftParallelFraction: 0.5,
     // A frame counts as "still" when hand speed is below this fraction of the swing's peak speed.
     stillSpeedFraction: 0.12,
     // Shoulder width / torso length at address below which we guess down-the-line.
